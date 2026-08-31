@@ -54,7 +54,7 @@ export class Race {
     this.items.setup(this.built);
     this.spawn(playerKart);
 
-    this.headlight = new THREE.SpotLight(0xfff3d6, 3.4, 48, 0.48, 0.42, 1.15);
+    this.headlight = new THREE.SpotLight(0xfff3d6, 4.6, 56, 0.5, 0.38, 1.05);
     this.headlight.castShadow = false;
     this.scene.add(this.headlight);
     this.scene.add(this.headlight.target);
@@ -120,6 +120,7 @@ export class Race {
   }
 
   update(dt: number, input: Input, camera: THREE.PerspectiveCamera): void {
+    input.poll();
     if (this.paused) {
       this.cameraRig.update(camera, this.player.kart, dt, true, this.built);
       this.syncCarLights();
@@ -261,7 +262,7 @@ export class Race {
       }
       light.position.copy(hit.p);
       const dist = Math.sqrt(hit.d);
-      light.intensity = dist < 38 ? 16 * (1 - dist / 42) : 0;
+      light.intensity = dist < 42 ? 22 * (1 - dist / 48) : 0;
     });
   }
 

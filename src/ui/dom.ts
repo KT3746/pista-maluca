@@ -332,7 +332,7 @@ export class UI {
     existing?.remove();
     const wrap = document.createElement("div");
     wrap.className = "overlay";
-    const touch = wantsTouchControls();
+    const touch = document.body.classList.contains("touch-on") || wantsTouchControls();
     wrap.innerHTML = `
       <div class="panel">
         <div class="eyebrow">Prova interrompida</div>

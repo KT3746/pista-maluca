@@ -168,20 +168,23 @@ button,
 }
 
 .screen.garage {
-  background: linear-gradient(180deg, rgba(7, 8, 12, 0.04) 0%, rgba(7, 8, 12, 0.18) 32%, rgba(7, 8, 12, 0.86) 62%);
+  background: transparent;
   padding-top: 0;
+  justify-content: flex-end;
+}
+
+.screen.garage .screen-body {
+  flex: 0 1 auto;
 }
 
 .garage-stage {
-  flex: 0 0 36vh;
-  min-height: 160px;
-  pointer-events: none;
-  flex-shrink: 0;
+  display: none;
 }
 
 .garage-body {
-  background: linear-gradient(180deg, rgba(7, 8, 12, 0.15), rgba(7, 8, 12, 0.55));
+  background: linear-gradient(180deg, rgba(7, 8, 12, 0.2), rgba(7, 8, 12, 0.92) 18%);
   padding: 8px 4px 12px;
+  max-height: 54vh;
 }
 
 .kart-grid .card p {
@@ -190,21 +193,29 @@ button,
 
 @media (min-width: 820px) {
   .screen.garage {
-    background: linear-gradient(90deg, rgba(7, 8, 12, 0.9) 0 46%, rgba(7, 8, 12, 0.12) 62%);
+    background: linear-gradient(90deg, rgba(7, 8, 12, 0.92) 0 42%, rgba(7, 8, 12, 0.08) 56%);
     padding-top: calc(20px + var(--safe-t));
     flex-direction: row;
     align-items: stretch;
+    justify-content: flex-start;
   }
 
   .garage-stage {
+    display: block;
     order: 2;
-    flex: 1 1 48%;
+    flex: 1 1 52%;
     min-height: 0;
+    pointer-events: none;
   }
 
   .screen.garage .screen-body,
   .screen.garage .screen-foot {
-    max-width: 46%;
+    max-width: 42%;
+  }
+
+  .garage-body {
+    max-height: none;
+    background: transparent;
   }
 
   .screen.garage .screen-body {
@@ -216,8 +227,8 @@ button,
     position: absolute;
     left: 24px;
     bottom: 0;
-    width: 46%;
-    max-width: 46%;
+    width: 42%;
+    max-width: 42%;
   }
 
   .kart-grid .card p {
@@ -650,8 +661,8 @@ body:not(.touch-on) .hud-bot {
 .touch {
   position: absolute;
   inset: 0;
-  pointer-events: none;
-  z-index: 5;
+  pointer-events: none !important;
+  z-index: 12;
   display: none;
 }
 
@@ -661,8 +672,12 @@ body.touch-on .touch {
 
 .touch .zone {
   position: absolute;
-  pointer-events: auto;
+  pointer-events: auto !important;
   touch-action: none;
+}
+
+.touch .zone * {
+  pointer-events: auto !important;
 }
 
 .stick-wrap {
@@ -716,9 +731,9 @@ body.touch-on .touch {
 .pad-btn.accel {
   right: 0;
   bottom: 0;
-  width: 132px;
-  height: 132px;
-  font-size: 18px;
+  width: 148px;
+  height: 148px;
+  font-size: 20px;
 }
 
 .pad-btn.brake {
@@ -801,8 +816,8 @@ body.touch-on .touch {
   }
 
   .hud-map {
-    right: 60px;
-    top: calc(12px + var(--safe-t));
+    right: 12px;
+    top: calc(62px + var(--safe-t));
   }
 
   #minimap {

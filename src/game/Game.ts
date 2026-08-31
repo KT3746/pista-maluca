@@ -40,7 +40,7 @@ export class Game {
     this.renderer.setSize(window.innerWidth, window.innerHeight, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.28;
+    this.renderer.toneMappingExposure = 1.42;
     this.renderer.shadowMap.enabled = !isMobileViewport();
     this.camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.55, 720);
     this.ui = new UI(uiRoot);
@@ -76,14 +76,17 @@ export class Game {
   }
 
   private setupMenuScene(): void {
-    this.menuScene.fog = new THREE.FogExp2(0x0c1220, 0.018);
-    this.menuScene.add(new THREE.HemisphereLight(0x4a5c7a, 0x2a2218, 1.2));
-    const dir = new THREE.DirectionalLight(0xe8eef8, 1.35);
+    this.menuScene.fog = new THREE.FogExp2(0x0c1220, 0.008);
+    this.menuScene.add(new THREE.HemisphereLight(0x6a7c9a, 0x3a2e20, 1.45));
+    const dir = new THREE.DirectionalLight(0xf2f6fc, 1.6);
     dir.position.set(-6, 12, 10);
     this.menuScene.add(dir);
-    const fill = new THREE.DirectionalLight(0xffc56a, 0.45);
+    const fill = new THREE.DirectionalLight(0xffc56a, 0.7);
     fill.position.set(8, 4, -6);
     this.menuScene.add(fill);
+    const key = new THREE.PointLight(0xffe8b0, 18, 16, 1.6);
+    key.position.set(1.4, 2.4, 2.2);
+    this.menuScene.add(key);
     const floor = new THREE.Mesh(
       new THREE.CircleGeometry(18, 36),
       new THREE.MeshStandardMaterial({ color: 0x242830, roughness: 0.7, metalness: 0.12 }),
@@ -252,6 +255,8 @@ export class Game {
   }
 
   private bootRace(): void {
+    this.camera.clearViewOffset();
+    this.camera.near = 1.15;
     this.race?.dispose();
     const params = new URLSearchParams(location.search);
     const lapsRaw = Number(params.get("laps"));
@@ -367,13 +372,19 @@ export class Game {
     if (this.view === "karts") {
       const portrait = window.innerWidth < 820;
       if (portrait) {
-        this.camera.position.set(2.5, 1.5, 4.0);
-        this.camera.lookAt(0, 0.4, 0);
+        this.camera.clearViewOffset();
+        this.camera.position.set(0.15, 1.55, 5.35);
+        this.camera.lookAt(0, -1.65, 0);
       } else {
-        this.camera.position.set(-0.4, 1.55, 5.0);
-        this.camera.lookAt(1.25, 0.45, 0);
+        this.camera.clearViewOffset();
+        this.camera.position.set(-0.2, 1.5, 5.1);
+        this.camera.lookAt(1.4, 0.4, 0);
       }
+      this.camera.near = 0.35;
+      this.camera.fov = 42;
+      this.camera.updateProjectionMatrix();
     } else {
+      this.camera.clearViewOffset();
       this.camera.position.x = 4.2 + Math.sin(performance.now() * 0.00025) * 0.4;
       this.camera.position.y = 2.4;
       this.camera.position.z = 5.6;

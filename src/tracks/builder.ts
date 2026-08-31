@@ -86,10 +86,10 @@ function addRibbon(
 
   const roadMat = new THREE.MeshStandardMaterial({
     map: asphalt,
-    roughness: 0.32,
-    metalness: 0.18,
-    color: 0xe4e8f0,
-    envMapIntensity: 0.85,
+    roughness: 0.28,
+    metalness: 0.22,
+    color: 0xf0f3f8,
+    envMapIntensity: 1.05,
   });
   const road = new THREE.Mesh(roadGeo, roadMat);
   road.receiveShadow = true;
