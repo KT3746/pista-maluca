@@ -15,7 +15,7 @@ export class ChaseCamera {
 
   attach(camera: THREE.PerspectiveCamera, kart: KartBody, _track: BuiltTrack | null = null): void {
     this.snapTime = 2.2;
-    camera.near = 0.85;
+    camera.near = 1.05;
     camera.far = 800;
     this.place(camera, kart, true, 1 / 60);
   }
@@ -34,9 +34,9 @@ export class ChaseCamera {
     const phone = typeof window !== "undefined" && window.innerWidth < 820;
     const speed = Math.abs(kart.speed);
     const boost = kart.boostTime > 0 ? 1 : 0;
-    const back = (phone ? 14.5 : 11.5) + speed * 0.1;
-    const height = (phone ? 3.85 : 3.35) + speed * 0.012;
-    const ahead = (phone ? 22 : 16) + speed * 0.16;
+    const back = (phone ? 16.8 : 11.8) + speed * 0.1;
+    const height = (phone ? 5.6 : 3.55) + speed * 0.014;
+    const ahead = (phone ? 26 : 16) + speed * 0.16;
     const sin = Math.sin(kart.heading);
     const cos = Math.cos(kart.heading);
 
@@ -47,7 +47,7 @@ export class ChaseCamera {
     );
     const lookTarget = new THREE.Vector3(
       kart.position.x + sin * ahead,
-      kart.position.y + 1.15,
+      kart.position.y + (phone ? 1.55 : 1.2),
       kart.position.z + cos * ahead,
     );
 
@@ -66,16 +66,16 @@ export class ChaseCamera {
       this.look.z = damp(this.look.z, lookTarget.z, 6.4, dt);
     }
 
-    if (camera.position.distanceTo(kart.position) < (phone ? 11 : 8.5)) {
+    if (camera.position.distanceTo(kart.position) < (phone ? 13.5 : 8.5)) {
       camera.position.copy(this.desired);
     }
 
     camera.up.set(0, 1, 0);
     camera.lookAt(this.look);
-    const wantFov = (phone ? 46 : 52) + speed * 0.26 + boost * 6;
+    const wantFov = (phone ? 52 : 52) + speed * 0.22 + boost * 5;
     this.fov = snap ? wantFov : damp(this.fov, wantFov, 3.6, dt);
     camera.fov = this.fov;
-    camera.near = 0.85;
+    camera.near = 1.05;
     camera.updateProjectionMatrix();
   }
 }

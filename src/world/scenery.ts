@@ -55,15 +55,18 @@ export function decorateTrack(track: BuiltTrack, mobile: boolean): THREE.Group {
   root.add(sky);
 
   const ground = new THREE.Mesh(
-    new THREE.CircleGeometry(260, 40),
+    new THREE.CircleGeometry(520, 48),
     new THREE.MeshStandardMaterial({
-      color: track.def.mood === "coast" ? 0x1a3348 : track.def.mood === "neon" ? 0x221428 : 0x3a4038,
+      color: track.def.mood === "coast" ? 0x2a5a3a : track.def.mood === "neon" ? 0x3a2438 : 0x3d5340,
       roughness: 0.92,
       metalness: 0.04,
+      emissive: track.def.mood === "coast" ? 0x0c2414 : 0x101410,
+      emissiveIntensity: 0.35,
     }),
   );
   ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -0.6;
+  ground.position.y = -0.18;
+  ground.frustumCulled = false;
   root.add(ground);
 
   if (track.def.mood === "coast") decorateCoast(root, track, mobile);
@@ -251,8 +254,8 @@ function addLamps(root: THREE.Group, track: BuiltTrack, color: number, mobile: b
 export function makeLights(track: BuiltTrack, _mobile: boolean): THREE.Group {
   const g = new THREE.Group();
   const pal = track.def.palette;
-  const hemi = new THREE.HemisphereLight(pal.ambient, pal.hemiGround, 2.05);
-  const dir = new THREE.DirectionalLight(pal.sun, 1.85);
+  const hemi = new THREE.HemisphereLight(pal.ambient, pal.hemiGround, 2.55);
+  const dir = new THREE.DirectionalLight(pal.sun, 2.15);
   dir.position.set(pal.sunDir[0] * 40, pal.sunDir[1] * 40, pal.sunDir[2] * 40);
   dir.castShadow = !_mobile;
   if (dir.castShadow) {
@@ -264,11 +267,11 @@ export function makeLights(track: BuiltTrack, _mobile: boolean): THREE.Group {
     dir.shadow.camera.top = 50;
     dir.shadow.camera.bottom = -50;
   }
-  const fill = new THREE.DirectionalLight(0x8eb0d8, 0.55);
+  const fill = new THREE.DirectionalLight(0x8eb0d8, 0.85);
   fill.position.set(-pal.sunDir[0] * 20, 18, -pal.sunDir[2] * 20);
-  const rim = new THREE.DirectionalLight(0xffc56a, 0.35);
+  const rim = new THREE.DirectionalLight(0xffc56a, 0.55);
   rim.position.set(8, 6, -16);
-  const ambient = new THREE.AmbientLight(0x4a5a72, 0.7);
+  const ambient = new THREE.AmbientLight(0x6a7a92, 1.05);
   g.add(hemi, dir, fill, rim, ambient);
   return g;
 }

@@ -117,12 +117,21 @@ function addRibbon(
   runGeo.setAttribute("normal", new THREE.Float32BufferAttribute(runNrm, 3));
   runGeo.setAttribute("uv", new THREE.Float32BufferAttribute(runUv, 2));
   runGeo.setIndex(runIdx);
-  const runTex = palette.runoff.startsWith("#b0") ? makeSand() : makeDirt();
+  const runTex = palette.runoff.toLowerCase().startsWith("#c") || palette.runoff.toLowerCase().startsWith("#b")
+    ? makeSand()
+    : makeDirt();
   runTex.repeat.set(2, 18);
   const runoff = new THREE.Mesh(
     runGeo,
-    new THREE.MeshStandardMaterial({ map: runTex, color: palette.runoff, roughness: 1, metalness: 0 }),
+    new THREE.MeshStandardMaterial({
+      map: runTex,
+      color: palette.runoff,
+      roughness: 1,
+      metalness: 0,
+      emissive: new THREE.Color(palette.runoff).multiplyScalar(0.18),
+    }),
   );
+  runoff.frustumCulled = false;
   group.add(runoff);
 
   const wall = makeBarriers(samples, palette);

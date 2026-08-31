@@ -70,10 +70,10 @@ export function makeSand(): THREE.CanvasTexture {
 
 export function makeDirt(): THREE.CanvasTexture {
   return noiseCanvas(256, (ctx, size) => {
-    ctx.fillStyle = "#3a3228";
+    ctx.fillStyle = "#5a5044";
     ctx.fillRect(0, 0, size, size);
     for (let i = 0; i < 14000; i++) {
-      ctx.fillStyle = `rgba(${50 + Math.random() * 40},${40 + Math.random() * 30},${24},0.4)`;
+      ctx.fillStyle = `rgba(${90 + Math.random() * 50},${80 + Math.random() * 40},${40},0.4)`;
       ctx.fillRect(Math.random() * size, Math.random() * size, 2, 2);
     }
   });

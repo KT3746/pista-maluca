@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { AudioEngine } from "../audio/engine";
-import { isMobileViewport, wantsTouchControls } from "../config";
+import { forceRacePadsVisible, isMobileViewport, isPhoneViewport, wantsTouchControls } from "../config";
 import { Input } from "../input/input";
 import { Championship } from "../race/championship";
 import { Race } from "../race/race";
@@ -35,7 +35,7 @@ export class Game {
       antialias: !isMobileViewport(),
       powerPreference: "high-performance",
       alpha: false,
-      logarithmicDepthBuffer: true,
+      logarithmicDepthBuffer: false,
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileViewport() ? 1.25 : 1.75));
     this.renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -128,7 +128,7 @@ export class Game {
 
   private syncChrome(): void {
     const racing = this.view === "race";
-    const touch = window.innerWidth < 820 || wantsTouchControls();
+    const touch = isPhoneViewport() || wantsTouchControls();
     document.body.classList.toggle("is-race", racing);
     document.body.classList.toggle("touch-on", touch);
     document.body.classList.toggle("is-garage", this.view === "karts");
@@ -140,7 +140,9 @@ export class Game {
 
   private ensureTouchLayer(): void {
     const touch = document.getElementById("touch");
-    if (touch) this.input.bindTouch(touch);
+    if (!touch) return;
+    forceRacePadsVisible(touch);
+    this.input.bindTouch(touch);
   }
 
   private handle(a: { type: string; id?: string }): void {
@@ -341,6 +343,7 @@ export class Game {
 
   private tick(dt: number): void {
     if (this.view === "race" && this.race) {
+      this.ensureTouchLayer();
       if (this.input.consumePause()) this.togglePause();
       this.race.update(dt, this.input, this.camera);
       const p = this.race.player;
@@ -371,6 +374,7 @@ export class Game {
         this.audio.engine(rpm, this.input.state.throttle, p.kart.boostTime > 0);
         this.audio.drift(p.kart.drifting ? 0.7 + p.kart.driftCharge * 0.3 : 0);
       }
+      this.renderer.setClearColor(0x1a2a48, 1);
       this.renderer.setScissorTest(false);
       this.renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
       this.renderer.render(this.race.scene, this.camera);

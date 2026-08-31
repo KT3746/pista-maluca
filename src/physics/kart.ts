@@ -88,6 +88,7 @@ function snapToRibbon(kart: KartBody, track: BuiltTrack): void {
   kart.stuckTimer = 0;
   kart.airTime = 0;
   kart.wallContact = false;
+  kart.recoverTimer = 0;
 }
 
 const FWD = new THREE.Vector3();
@@ -120,9 +121,10 @@ export function stepKart(
   kart.lateral = q.lateral;
   kart.onAsphalt = q.surface === "asphalt" && Math.abs(q.lateral) < q.halfWidth;
   const onRunoff = Math.abs(q.lateral) > q.halfWidth && Math.abs(q.lateral) < q.halfWidth + q.runoff;
+  const offRibbon = Math.abs(q.lateral) > q.halfWidth + q.runoff;
 
   const away = kart.position.distanceTo(q.sample.position);
-  if (Math.abs(q.lateral) > q.halfWidth + q.runoff + 3.2 || kart.position.y < -2 || away > 16) {
+  if (Math.abs(q.lateral) > q.halfWidth + q.runoff + 1.4 || kart.position.y < -2 || away > 10) {
     snapToRibbon(kart, track);
     return;
   }
@@ -161,8 +163,12 @@ export function stepKart(
   const top =
     (18 + stats.topSpeed * 16) *
     (kart.boostTime > 0 ? 1.36 : 1) *
-    (kart.onAsphalt ? 1 : kart.airborne ? 0.95 : 0.58);
+    (kart.onAsphalt ? 1 : kart.airborne ? 0.72 : onRunoff ? 0.32 : 0.18);
   const acc = 7 + stats.accel * 10;
+
+  if (!kart.onAsphalt && !kart.airborne) {
+    kart.speed *= Math.exp(-(onRunoff ? 1.8 : 3.2) * dt);
+  }
 
   if (brake > 0.1) {
     kart.speed = Math.max(kart.speed - (32 + brake * 10) * dt, -7);
@@ -203,11 +209,14 @@ export function stepKart(
   FWD.set(Math.sin(kart.heading), 0, Math.cos(kart.heading));
   kart.position.addScaledVector(FWD, kart.speed * dt);
   if (onRunoff && !kart.airborne) {
-    kart.position.addScaledVector(q.right, -Math.sign(q.lateral) * 4.2 * dt);
+    kart.position.addScaledVector(q.right, -Math.sign(q.lateral) * 6.4 * dt);
+  }
+  if (offRibbon && !kart.airborne) {
+    kart.position.addScaledVector(q.right, -Math.sign(q.lateral) * 10 * dt);
   }
   if (!kart.onAsphalt && !q.sample.shortcut) {
     kart.recoverTimer += dt;
-    if (kart.recoverTimer > 2.1) {
+    if (kart.recoverTimer > 0.55) {
       snapToRibbon(kart, track);
       return;
     }
@@ -231,7 +240,7 @@ export function stepKart(
     }
     kart.wallContact = true;
     kart.offTrackTimer += dt;
-    if (over > 3.5 || kart.offTrackTimer > 1.15) {
+    if (over > 1.6 || kart.offTrackTimer > 0.4) {
       snapToRibbon(kart, track);
       return;
     }

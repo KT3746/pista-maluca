@@ -606,7 +606,7 @@ body:not(.touch-on) .hud-bot {
   place-items: center;
   background: rgba(7, 8, 12, 0.62);
   padding: 24px;
-  z-index: 8;
+  z-index: 50;
 }
 
 .panel {
@@ -662,18 +662,23 @@ body:not(.touch-on) .hud-bot {
   position: absolute;
   inset: 0;
   pointer-events: none !important;
-  z-index: 12;
+  z-index: 20;
   display: none;
 }
 
 body.touch-on .touch {
-  display: block;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 /* Phone viewport: pads stay up even if JS detection (maxTouchPoints / hover) lies. */
 @media (max-width: 819px) {
-  body.is-race .touch {
+  #touch,
+  .touch {
     display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
   }
 }
 
@@ -702,8 +707,8 @@ body.touch-on .touch {
 
 .stick-base {
   inset: 0;
-  background: rgba(10, 12, 16, 0.42);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(10, 12, 16, 0.72);
+  border: 2px solid rgba(240, 212, 138, 0.55);
 }
 
 .stick-knob {
@@ -724,8 +729,8 @@ body.touch-on .touch {
 
 .pad-btn {
   position: absolute;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(10, 12, 16, 0.5);
+  border: 2px solid rgba(240, 212, 138, 0.5);
+  background: rgba(10, 12, 16, 0.78);
   color: var(--text);
   font-family: var(--font-display);
   letter-spacing: 0.08em;

@@ -6,6 +6,15 @@ export const TOUCH_VIEWPORT_MAX = 820;
 
 export const CUP_POINTS = [10, 7, 5, 3] as const;
 
+/** Layout width used for phone HUD / pads. visualViewport beats innerWidth on iOS. */
+export const layoutWidth = (): number => {
+  if (typeof window === "undefined") return 1280;
+  const vis = window.visualViewport?.width;
+  return typeof vis === "number" && vis > 0 ? vis : window.innerWidth;
+};
+
+export const isPhoneViewport = (): boolean => layoutWidth() < TOUCH_VIEWPORT_MAX;
+
 /**
  * On-screen race pads must appear when the screen is phone-narrow, OR the
  * pointer is coarse, OR the device reports touch points. Never gate this on
@@ -14,7 +23,6 @@ export const CUP_POINTS = [10, 7, 5, 3] as const;
  */
 export const wantsTouchControls = (): boolean => {
   if (typeof window === "undefined") return false;
-  const narrow = window.innerWidth < TOUCH_VIEWPORT_MAX;
   let coarse = false;
   try {
     coarse = window.matchMedia("(pointer: coarse)").matches;
@@ -22,7 +30,7 @@ export const wantsTouchControls = (): boolean => {
     coarse = false;
   }
   const points = typeof navigator !== "undefined" ? navigator.maxTouchPoints : 0;
-  return narrow || coarse || points > 0;
+  return isPhoneViewport() || coarse || points > 0;
 };
 
 /** @deprecated alias — same rule as wantsTouchControls */
@@ -30,8 +38,20 @@ export const isTouchPreferred = (): boolean => wantsTouchControls();
 
 export const isMobileViewport = (): boolean => {
   if (typeof window === "undefined") return false;
-  return window.innerWidth < TOUCH_VIEWPORT_MAX || wantsTouchControls();
+  return isPhoneViewport() || wantsTouchControls();
 };
+
+/** Paint the race pads so CSS `display:none` cannot win on a phone. */
+export function forceRacePadsVisible(el: HTMLElement | null): void {
+  if (!el) return;
+  if (!wantsTouchControls()) return;
+  el.classList.remove("hidden");
+  el.style.setProperty("display", "block", "important");
+  el.style.setProperty("visibility", "visible", "important");
+  el.style.setProperty("opacity", "1", "important");
+  el.style.setProperty("pointer-events", "none", "important");
+  el.style.setProperty("z-index", "20", "important");
+}
 
 export function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));

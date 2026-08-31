@@ -1,4 +1,4 @@
-import { TOTAL_LAPS, formatTime, wantsTouchControls } from "../config";
+import { TOTAL_LAPS, formatTime } from "../config";
 import { KARTS } from "../karts/roster";
 import { TRACKS } from "../tracks/catalog";
 import { ITEM_LABEL } from "../items/system";
@@ -108,26 +108,21 @@ export class UI {
       </section>`);
   }
 
-  controls(back = "back"): void {
-    const touch = wantsTouchControls();
+  controls(_back = "back"): void {
     this.set(`
       <section class="screen solid">
         <div class="screen-body">
           <div class="eyebrow">Como dirigir</div>
           <h2>Controles</h2>
           <div class="sheet">
-            ${
-              touch
-                ? `<p><b>Esquerda:</b> direcional (arraste). <b>Direita:</b> Acelera, Freio, Drift e Item.</p>`
-                : `<p><b>Acelerar</b> ↑ ou W · <b>Frear</b> ↓ ou S · <b>Dirigir</b> ← → ou A D</p>
-                   <p><b>Drift</b> Shift ou Espaço · <b>Item</b> E ou Ctrl · <b>Pausa</b> Esc · <b>Mudo</b> no menu</p>`
-            }
+            <p><b>No celular:</b> à esquerda o direcional (arraste o dedo). À direita: <b>Acelera</b>, <b>Freio</b>, <b>Drift</b> e <b>Item</b>. Depois do VAI!, segure Acelera para o kart andar.</p>
+            <p><b>No teclado:</b> W ou ↑ acelera · S ou ↓ freia · A D dirige · Shift ou Espaço faz drift · E usa o item · Esc pausa.</p>
             <p>Segure o drift numa curva e solte limpo para um turbo curto. Caixas douradas no asfalto enchem o slot.</p>
             <p><b>Disco Ímã</b> segue a fita da pista e busca quem está à frente. <b>Sabão</b> deixa uma poça escorregadia atrás. <b>Carga Turbo</b> empurra. <b>Fuligem</b> cega e atrasa quem vem atrás. <b>Gancho</b> puxa a próxima caixa dourada.</p>
           </div>
         </div>
         <div class="screen-foot">
-          <button type="button" class="btn primary" data-act="${back}">Voltar</button>
+          <button type="button" class="btn primary" data-act="${_back}">Voltar</button>
         </div>
       </section>`);
   }
@@ -332,18 +327,13 @@ export class UI {
     existing?.remove();
     const wrap = document.createElement("div");
     wrap.className = "overlay";
-    const touch = document.body.classList.contains("touch-on") || wantsTouchControls();
     wrap.innerHTML = `
       <div class="panel">
         <div class="eyebrow">Prova interrompida</div>
         <h2>Pausa</h2>
         <div class="sheet" style="margin-top:10px">
-          ${
-            touch
-              ? `<p><b>Esquerda:</b> direcional (arraste). <b>Direita:</b> Acelera, Freio, Drift e Item.</p>
-                 <p>Teclado no tablet: <b>W</b> acelera · <b>S</b> freia · <b>A D</b> dirige · <b>Shift</b> drift · <b>E</b> item.</p>`
-              : `<p><b>↑ W</b> acelera · <b>↓ S</b> freia · <b>A D</b> dirige · <b>Shift</b> drift · <b>E</b> item</p>`
-          }
+          <p><b>Celular:</b> esquerda = direção. Direita = Acelera, Freio, Drift e Item.</p>
+          <p><b>Teclado:</b> W acelera · S freia · A D dirige · Shift drift · E item.</p>
         </div>
         <div class="stack">
           <button type="button" class="btn primary" data-act="resume">Continuar</button>

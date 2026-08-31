@@ -54,7 +54,7 @@ export class Race {
     this.items.setup(this.built);
     this.spawn(playerKart);
 
-    this.headlight = new THREE.SpotLight(0xfff3d6, 4.6, 56, 0.5, 0.38, 1.05);
+    this.headlight = new THREE.SpotLight(0xfff3d6, 7.2, 64, 0.55, 0.32, 1.0);
     this.headlight.castShadow = false;
     this.scene.add(this.headlight);
     this.scene.add(this.headlight.target);
@@ -98,6 +98,8 @@ export class Race {
       mesh.position.copy(pos);
       mesh.rotation.y = start.heading;
       mesh.frustumCulled = false;
+      mesh.scale.setScalar(1.12);
+      mesh.visible = true;
       this.scene.add(mesh);
       const racer: Racer = {
         ...info,
@@ -194,7 +196,7 @@ export class Race {
     this.items.update(dt, this.racers, this.built, (r, kind) => {
       if (kind === "puck" || kind === "soap") this.onCue("hit");
       if (kind === "hook" && r.isPlayer) this.onCue("item");
-    }, camera);
+    });
 
     for (const r of this.racers) {
       const meshMod = r.mesh as THREE.Group & { lastLap?: number };
@@ -214,6 +216,7 @@ export class Race {
 
     this.rank();
     for (const r of this.racers) {
+      r.mesh.visible = true;
       r.mesh.position.copy(r.kart.position);
       r.mesh.rotation.order = "YXZ";
       r.mesh.rotation.y = r.kart.heading;
@@ -262,7 +265,7 @@ export class Race {
       }
       light.position.copy(hit.p);
       const dist = Math.sqrt(hit.d);
-      light.intensity = dist < 42 ? 22 * (1 - dist / 48) : 0;
+      light.intensity = dist < 48 ? 28 * (1 - dist / 52) : 0;
     });
   }
 
