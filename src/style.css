@@ -377,10 +377,19 @@ h2 {
   padding: calc(14px + var(--safe-t)) 16px calc(14px + var(--safe-b));
 }
 
+.pause-btn {
+  position: absolute;
+  top: calc(14px + var(--safe-t));
+  right: 14px;
+  z-index: 6;
+}
+
 .hud-top {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  padding-right: 64px;
+  gap: 12px;
 }
 
 .pos {
@@ -434,15 +443,18 @@ h2 {
 }
 
 .item-slot {
-  width: 76px;
-  height: 76px;
+  width: 96px;
+  min-height: 76px;
+  height: auto;
   display: grid;
   place-items: center;
   font-family: var(--font-display);
   font-size: 13px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   text-align: center;
+  line-height: 1.15;
+  padding: 8px 6px;
 }
 
 .item-slot.armed {

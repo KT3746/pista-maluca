@@ -1,4 +1,4 @@
-import { formatTime, isTouchPreferred } from "../config";
+import { TOTAL_LAPS, formatTime, isTouchPreferred } from "../config";
 import { KARTS } from "../karts/roster";
 import { TRACKS } from "../tracks/catalog";
 import { ITEM_LABEL } from "../items/system";
@@ -190,7 +190,7 @@ export class UI {
     this.set(`
       <section class="screen solid">
         <div class="screen-body">
-          <div class="eyebrow">${cup ? "Três provas · 10 / 7 / 5 / 3 pts" : "Uma prova · 3 voltas"}</div>
+          <div class="eyebrow">${cup ? "Três provas · 10 / 7 / 5 / 3 pts" : `Uma prova · ${TOTAL_LAPS} voltas`}</div>
           <h2>${cup ? "Ordem do campeonato" : "Escolha a pista"}</h2>
           <div class="grid">${cards}</div>
         </div>
@@ -219,7 +219,7 @@ export class UI {
       <div class="countdown hidden" id="countdown">3</div>
       <div class="banner hidden" id="banner"></div>
       <div class="soot-veil hidden" id="soot-veil"></div>
-      <button type="button" class="icon-btn" data-act="pause" aria-label="Pausa" style="position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px;z-index:6">II</button>
+      <button type="button" class="icon-btn pause-btn" data-act="pause" aria-label="Pausa">II</button>
       ${
         touch
           ? `<div class="touch" id="touch">
