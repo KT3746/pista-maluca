@@ -121,7 +121,7 @@ export class ItemSystem {
       );
       mesh.position.copy(p).add(new THREE.Vector3(0, 0.8, 0));
       this.group.add(mesh);
-      this.soots.push({ mesh, position: p, life: 3.4, owner: racer.id });
+      this.soots.push({ mesh, position: p, life: 4.2, owner: racer.id });
       return;
     }
     if (id === "puck") {
@@ -155,6 +155,7 @@ export class ItemSystem {
         if (box.respawn <= 0) {
           box.alive = true;
           box.mesh.visible = true;
+          box.mesh.position.copy(box.pos);
         }
         continue;
       }
@@ -243,12 +244,28 @@ export class ItemSystem {
         if (r.id === cloud.owner) continue;
         if (r.kart.position.distanceTo(cloud.position) < 2.6 && cloud.life > 0) {
           r.kart.speed *= Math.exp(-1.1 * dt);
-          r.kart.smokeTime = 0.3;
+          r.kart.smokeTime = Math.max(r.kart.smokeTime, 2.2);
         }
       }
     }
 
     if (this.pucks.length > 12) this.pucks = this.pucks.filter((p) => !p.spent && p.life > 0);
+
+    for (const r of racers) {
+      if (r.kart.magnetTime <= 0) continue;
+      let nearest: (typeof this.boxes)[number] | null = null;
+      let nd = 26;
+      for (const box of this.boxes) {
+        if (!box.alive) continue;
+        const d = r.kart.position.distanceTo(box.mesh.position);
+        if (d < nd) {
+          nd = d;
+          nearest = box;
+        }
+      }
+      if (!nearest) continue;
+      nearest.mesh.position.lerp(r.kart.position.clone().add(new THREE.Vector3(0, 0.7, 0)), 1 - Math.exp(-3.2 * dt));
+    }
   }
 }
 

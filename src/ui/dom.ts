@@ -1,4 +1,4 @@
-import { formatTime, isTouchPreferred } from "../config";
+import { TOTAL_LAPS, formatTime, isTouchPreferred } from "../config";
 import { KARTS } from "../karts/roster";
 import { TRACKS } from "../tracks/catalog";
 import { ITEM_LABEL } from "../items/system";
@@ -28,17 +28,53 @@ export class UI {
   onAction: (a: UiAction) => void = () => undefined;
   private minimap: CanvasRenderingContext2D | null = null;
   private countdownEl: HTMLElement | null = null;
+  private press: { pointerId: number; x: number; y: number; el: HTMLElement } | null = null;
+  private lastFire = 0;
 
   constructor(root: HTMLElement) {
     this.root = root;
+    this.root.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      const t = (e.target as HTMLElement | null)?.closest("[data-act]") as HTMLElement | null;
+      if (!t || t.closest("[data-pad]") || this.isDisabled(t)) return;
+      this.press = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, el: t };
+    });
+    this.root.addEventListener("pointerup", (e) => {
+      const p = this.press;
+      this.press = null;
+      if (!p || p.pointerId !== e.pointerId) return;
+      if (Math.hypot(e.clientX - p.x, e.clientY - p.y) > 16) return;
+      if (!p.el.isConnected || this.isDisabled(p.el)) return;
+      this.fire(p.el);
+    });
+    this.root.addEventListener("pointercancel", () => {
+      this.press = null;
+    });
     this.root.addEventListener("click", (e) => {
-      const t = (e.target as HTMLElement).closest("[data-act]") as HTMLElement | null;
-      if (!t) return;
-      const act = t.dataset.act;
-      const id = t.dataset.id;
-      if (act === "kart") this.onAction({ type: "kart", id: id as KartId });
-      else if (act === "track") this.onAction({ type: "track", id: id as TrackId });
-      else if (act) this.onAction({ type: act } as UiAction);
+      const t = (e.target as HTMLElement | null)?.closest("[data-act]") as HTMLElement | null;
+      if (!t || t.closest("[data-pad]") || this.isDisabled(t)) return;
+      this.fire(t);
+    });
+  }
+
+  private isDisabled(el: HTMLElement): boolean {
+    return el.hasAttribute("disabled") || (el as HTMLButtonElement).disabled === true;
+  }
+
+  private fire(el: HTMLElement): void {
+    const now = performance.now();
+    if (now - this.lastFire < 280) return;
+    this.lastFire = now;
+    const act = el.dataset.act;
+    const id = el.dataset.id;
+    if (act === "kart") this.onAction({ type: "kart", id: id as KartId });
+    else if (act === "track") this.onAction({ type: "track", id: id as TrackId });
+    else if (act) this.onAction({ type: act } as UiAction);
+  }
+
+  highlight(kind: "kart" | "track", id: string): void {
+    this.root.querySelectorAll(`[data-act="${kind}"]`).forEach((node) => {
+      node.classList.toggle("selected", (node as HTMLElement).dataset.id === id);
     });
   }
 
@@ -51,20 +87,22 @@ export class UI {
   title(muted: boolean): void {
     this.set(`
       <section class="screen">
-        <div class="topbar">
-          <div class="brand">
-            <div class="eyebrow">Corrida de kart original</div>
-            <h1>Pista Maluca</h1>
-            <p class="lede">Terceira pessoa, asfalto com peso, itens que mudam a prova. Sem mascote emprestado — só o grid e a noite.</p>
+        <div class="screen-body">
+          <div class="topbar">
+            <div class="brand">
+              <div class="eyebrow">Corrida de kart original</div>
+              <h1>Pista Maluca</h1>
+              <p class="lede">Terceira pessoa, asfalto com peso, itens que mudam a prova. Sem mascote emprestado — só o grid e a noite.</p>
+            </div>
+            <button type="button" class="icon-btn mute-btn" data-act="mute" aria-label="${muted ? "Ativar som" : "Mudo"}">${muted ? "Som off" : "Som"}</button>
           </div>
-          <button class="icon-btn" data-act="mute" aria-label="Mudo">${muted ? "Som off" : "Som"}</button>
         </div>
-        <div class="stack">
-          <button class="btn primary" data-act="quick">Corrida rápida</button>
-          <button class="btn" data-act="cup">Campeonato curto</button>
+        <div class="screen-foot col">
+          <button type="button" class="btn primary" data-act="quick">Corrida rápida</button>
+          <button type="button" class="btn" data-act="cup">Campeonato curto</button>
           <div class="row">
-            <button class="btn ghost" data-act="controls">Controles</button>
-            <button class="btn ghost" data-act="credits">Créditos</button>
+            <button type="button" class="btn ghost" data-act="controls">Controles</button>
+            <button type="button" class="btn ghost" data-act="credits">Créditos</button>
           </div>
         </div>
       </section>`);
@@ -74,33 +112,41 @@ export class UI {
     const touch = isTouchPreferred();
     this.set(`
       <section class="screen solid">
-        <div class="eyebrow">Como dirigir</div>
-        <h2>Controles</h2>
-        <div class="sheet">
-          ${
-            touch
-              ? `<p><b>Esquerda:</b> direcional. <b>Direita:</b> acelerar, frear, drift e item.</p>`
-              : `<p><b>Acelerar</b> ↑ ou W · <b>Frear</b> ↓ ou S · <b>Dirigir</b> ← → ou A D</p>
-                 <p><b>Drift</b> Shift ou Espaço · <b>Item</b> E ou Ctrl · <b>Pausa</b> Esc · <b>Mudo</b> no menu</p>`
-          }
-          <p>Segure o drift numa curva e solte limpo para um turbo curto. Caixas douradas no asfalto enchem o slot.</p>
-          <p><b>Disco Ímã</b> segue a fita da pista. <b>Sabão</b> escorrega. <b>Carga Turbo</b> empurra. <b>Fuligem</b> cega quem vem atrás. <b>Gancho</b> puxa a próxima caixa.</p>
+        <div class="screen-body">
+          <div class="eyebrow">Como dirigir</div>
+          <h2>Controles</h2>
+          <div class="sheet">
+            ${
+              touch
+                ? `<p><b>Esquerda:</b> direcional (arraste). <b>Direita:</b> Acelera, Freio, Drift e Item.</p>`
+                : `<p><b>Acelerar</b> ↑ ou W · <b>Frear</b> ↓ ou S · <b>Dirigir</b> ← → ou A D</p>
+                   <p><b>Drift</b> Shift ou Espaço · <b>Item</b> E ou Ctrl · <b>Pausa</b> Esc · <b>Mudo</b> no menu</p>`
+            }
+            <p>Segure o drift numa curva e solte limpo para um turbo curto. Caixas douradas no asfalto enchem o slot.</p>
+            <p><b>Disco Ímã</b> segue a fita da pista e busca quem está à frente. <b>Sabão</b> deixa uma poça escorregadia atrás. <b>Carga Turbo</b> empurra. <b>Fuligem</b> cega e atrasa quem vem atrás. <b>Gancho</b> puxa a próxima caixa dourada.</p>
+          </div>
         </div>
-        <div class="stack"><button class="btn primary" data-act="${back}">Voltar</button></div>
+        <div class="screen-foot">
+          <button type="button" class="btn primary" data-act="${back}">Voltar</button>
+        </div>
       </section>`);
   }
 
   credits(): void {
     this.set(`
       <section class="screen solid">
-        <div class="eyebrow">Ficha técnica</div>
-        <h2>Créditos</h2>
-        <div class="sheet">
-          <p><b>Pista Maluca</b> é um jogo original de corrida no navegador. Inspirado no gênero — câmera de perseguição, caixas, caos justo — com nomes, silhuetas e itens próprios.</p>
-          <p>Three.js · WebGL · áudio procedural. Feito para desktop e Safari no iPhone.</p>
-          <p>MIT · KT3746</p>
+        <div class="screen-body">
+          <div class="eyebrow">Ficha técnica</div>
+          <h2>Créditos</h2>
+          <div class="sheet">
+            <p><b>Pista Maluca</b> é um jogo original de corrida no navegador. Inspirado no gênero — câmera de perseguição, caixas, caos justo — com nomes, silhuetas e itens próprios.</p>
+            <p>Three.js · WebGL · áudio procedural. Feito para desktop e Safari no iPhone.</p>
+            <p>MIT · KT3746</p>
+          </div>
         </div>
-        <div class="stack"><button class="btn primary" data-act="back">Voltar</button></div>
+        <div class="screen-foot">
+          <button type="button" class="btn primary" data-act="back">Voltar</button>
+        </div>
       </section>`);
   }
 
@@ -108,7 +154,7 @@ export class UI {
     const cards = KARTS.map((k) => {
       const sel = k.id === selected ? " selected" : "";
       const bar = (n: number) => `<span class="bar"><i style="width:${Math.round(n * 100)}%"></i></span>`;
-      return `<button class="card${sel}" data-act="kart" data-id="${k.id}">
+      return `<button type="button" class="card${sel}" data-act="kart" data-id="${k.id}">
         <div class="name">${k.name}</div>
         <div class="tag">${k.role}</div>
         <p>${k.blurb}</p>
@@ -120,12 +166,14 @@ export class UI {
     }).join("");
     this.set(`
       <section class="screen solid">
-        <div class="eyebrow">${cup ? "Campeonato curto" : "Corrida rápida"}</div>
-        <h2>Escolha o kart</h2>
-        <div class="grid">${cards}</div>
-        <div class="row">
-          <button class="btn ghost" data-act="back">Voltar</button>
-          <button class="btn primary" data-act="go">${cup ? "Ver pistas" : "Escolher pista"}</button>
+        <div class="screen-body">
+          <div class="eyebrow">${cup ? "Campeonato curto" : "Corrida rápida"}</div>
+          <h2>Escolha o kart</h2>
+          <div class="grid">${cards}</div>
+        </div>
+        <div class="screen-foot">
+          <button type="button" class="btn ghost" data-act="back">Voltar</button>
+          <button type="button" class="btn primary" data-act="go">${cup ? "Ver pistas" : "Escolher pista"}</button>
         </div>
       </section>`);
   }
@@ -133,7 +181,7 @@ export class UI {
   tracks(selected: TrackId, cup: boolean): void {
     const cards = TRACKS.map((t) => {
       const sel = t.id === selected ? " selected" : "";
-      return `<button class="card${sel}" data-act="track" data-id="${t.id}" ${cup ? "disabled" : ""}>
+      return `<button type="button" class="card${sel}" data-act="track" data-id="${t.id}" ${cup ? "disabled" : ""}>
         <div class="name">${t.name}</div>
         <div class="tag">${t.tagline}</div>
         <p>${t.blurb}</p>
@@ -141,12 +189,14 @@ export class UI {
     }).join("");
     this.set(`
       <section class="screen solid">
-        <div class="eyebrow">${cup ? "Três provas · 10 / 7 / 5 / 3 pts" : "Uma prova · 3 voltas"}</div>
-        <h2>${cup ? "Ordem do campeonato" : "Escolha a pista"}</h2>
-        <div class="grid">${cards}</div>
-        <div class="row">
-          <button class="btn ghost" data-act="back">Voltar</button>
-          <button class="btn primary" data-act="go">Largar</button>
+        <div class="screen-body">
+          <div class="eyebrow">${cup ? "Três provas · 10 / 7 / 5 / 3 pts" : `Uma prova · ${TOTAL_LAPS} voltas`}</div>
+          <h2>${cup ? "Ordem do campeonato" : "Escolha a pista"}</h2>
+          <div class="grid">${cards}</div>
+        </div>
+        <div class="screen-foot">
+          <button type="button" class="btn ghost" data-act="back">Voltar</button>
+          <button type="button" class="btn primary" data-act="go">Largar</button>
         </div>
       </section>`);
   }
@@ -168,16 +218,17 @@ export class UI {
       </div>
       <div class="countdown hidden" id="countdown">3</div>
       <div class="banner hidden" id="banner"></div>
-      <button class="icon-btn" data-act="pause" style="position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px">II</button>
+      <div class="soot-veil hidden" id="soot-veil"></div>
+      <button type="button" class="icon-btn pause-btn" data-act="pause" aria-label="Pausa">II</button>
       ${
         touch
           ? `<div class="touch" id="touch">
               <div class="zone stick-wrap"><div class="stick-base"></div><div class="stick-knob"></div></div>
               <div class="zone pad-right">
-                <button class="pad-btn item" data-pad="item">Item</button>
-                <button class="pad-btn drift" data-pad="drift">Drift</button>
-                <button class="pad-btn brake" data-pad="brake">Freio</button>
-                <button class="pad-btn accel" data-pad="throttle">Acelera</button>
+                <button type="button" class="pad-btn item" data-pad="item">Item</button>
+                <button type="button" class="pad-btn drift" data-pad="drift">Drift</button>
+                <button type="button" class="pad-btn brake" data-pad="brake">Freio</button>
+                <button type="button" class="pad-btn accel" data-pad="throttle">Acelera</button>
               </div>
             </div>`
           : ""
@@ -195,6 +246,7 @@ export class UI {
     speed: number;
     item: ItemId | null;
     trackName: string;
+    smoke?: boolean;
   }): void {
     const pos = this.root.querySelector("#hud-pos");
     const name = this.root.querySelector("#hud-name");
@@ -209,6 +261,7 @@ export class UI {
       item.textContent = data.item ? ITEM_LABEL[data.item] : "vazio";
       item.classList.toggle("armed", !!data.item);
     }
+    this.root.querySelector("#soot-veil")?.classList.toggle("hidden", !data.smoke);
   }
 
   drawMinimap(
@@ -290,9 +343,9 @@ export class UI {
           <p><b>↑ W</b> acelera · <b>↓ S</b> freia · <b>A D</b> dirige · <b>Shift</b> drift · <b>E</b> item</p>
         </div>
         <div class="stack">
-          <button class="btn primary" data-act="resume">Continuar</button>
-          <button class="btn" data-act="mute">${muted ? "Ativar som" : "Mudo"}</button>
-          <button class="btn danger" data-act="quit">Abandonar</button>
+          <button type="button" class="btn primary" data-act="resume">Continuar</button>
+          <button type="button" class="btn" data-act="mute">${muted ? "Ativar som" : "Mudo"}</button>
+          <button type="button" class="btn danger" data-act="quit">Abandonar</button>
         </div>
       </div>`;
     this.root.appendChild(wrap);
@@ -313,17 +366,19 @@ export class UI {
       .join("");
     this.set(`
       <section class="screen solid">
-        <div class="eyebrow">Chegada</div>
-        <h2>${rows.find((r) => r.isPlayer)?.place === 1 ? "Bandeirada sua" : "Fim da prova"}</h2>
-        <table class="table">
-          <thead><tr><th>Pos</th><th>Piloto</th><th>Tempo</th><th>Melhor volta</th></tr></thead>
-          <tbody>${body}</tbody>
-        </table>
-        <div class="row">
-          ${cup && more ? `<button class="btn primary" data-act="next">Próxima prova</button>` : ""}
-          ${cup && !more ? `<button class="btn primary" data-act="next">Classificação</button>` : ""}
-          ${!cup ? `<button class="btn primary" data-act="retry">Correr de novo</button>` : ""}
-          <button class="btn" data-act="menu">Menu</button>
+        <div class="screen-body">
+          <div class="eyebrow">Chegada</div>
+          <h2>${rows.find((r) => r.isPlayer)?.place === 1 ? "Bandeirada sua" : "Fim da prova"}</h2>
+          <table class="table">
+            <thead><tr><th>Pos</th><th>Piloto</th><th>Tempo</th><th>Melhor volta</th></tr></thead>
+            <tbody>${body}</tbody>
+          </table>
+        </div>
+        <div class="screen-foot">
+          ${cup && more ? `<button type="button" class="btn primary" data-act="next">Próxima prova</button>` : ""}
+          ${cup && !more ? `<button type="button" class="btn primary" data-act="next">Classificação</button>` : ""}
+          ${!cup ? `<button type="button" class="btn primary" data-act="retry">Correr de novo</button>` : ""}
+          <button type="button" class="btn" data-act="menu">Menu</button>
         </div>
       </section>`);
   }
@@ -340,13 +395,17 @@ export class UI {
     const you = rows.findIndex((r) => r.isPlayer) + 1;
     this.set(`
       <section class="screen solid">
-        <div class="eyebrow">Campeonato curto</div>
-        <h2>${you === 1 ? "Troféu" : "Classificação final"}</h2>
-        <table class="table">
-          <thead><tr><th>Pos</th><th>Piloto</th><th>Pts</th><th>Vitórias</th></tr></thead>
-          <tbody>${body}</tbody>
-        </table>
-        <div class="stack"><button class="btn primary" data-act="menu">Menu</button></div>
+        <div class="screen-body">
+          <div class="eyebrow">Campeonato curto</div>
+          <h2>${you === 1 ? "Troféu" : "Classificação final"}</h2>
+          <table class="table">
+            <thead><tr><th>Pos</th><th>Piloto</th><th>Pts</th><th>Vitórias</th></tr></thead>
+            <tbody>${body}</tbody>
+          </table>
+        </div>
+        <div class="screen-foot">
+          <button type="button" class="btn primary" data-act="menu">Menu</button>
+        </div>
       </section>`);
   }
 }

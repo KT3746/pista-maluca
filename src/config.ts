@@ -7,10 +7,9 @@ export const CUP_POINTS = [10, 7, 5, 3] as const;
 
 export const isTouchPreferred = (): boolean => {
   if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia("(pointer: coarse)").matches ||
-    navigator.maxTouchPoints > 0
-  );
+  const coarse = window.matchMedia("(pointer: coarse)").matches;
+  const noHover = window.matchMedia("(hover: none)").matches;
+  return coarse || (navigator.maxTouchPoints > 0 && noHover);
 };
 
 export const isMobileViewport = (): boolean => {
