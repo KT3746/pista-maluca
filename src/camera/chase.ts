@@ -17,8 +17,8 @@ export class ChaseCamera {
 
   update(camera: THREE.PerspectiveCamera, kart: KartBody, dt: number, paused: boolean): void {
     const boost = kart.boostTime > 0 ? 1 : 0;
-    const backDist = 6.1 + Math.abs(kart.speed) * 0.035 - boost * 0.35;
-    const height = 2.45 + Math.abs(kart.speed) * 0.012;
+    const backDist = 6.8 + Math.abs(kart.speed) * 0.04 - boost * 0.35;
+    const height = 3.15 + Math.abs(kart.speed) * 0.016;
     const back = new THREE.Vector3(-Math.sin(kart.heading), 0, -Math.cos(kart.heading));
     const fwd = new THREE.Vector3(Math.sin(kart.heading), 0, Math.cos(kart.heading));
     this.desired.copy(kart.position).addScaledVector(back, backDist).add(new THREE.Vector3(0, height, 0));

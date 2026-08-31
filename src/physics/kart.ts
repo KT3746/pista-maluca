@@ -38,6 +38,7 @@ export class KartBody {
   wallContact = false;
   stuckTimer = 0;
   airTime = 0;
+  recoverTimer = 0;
 
   reset(pos: THREE.Vector3, heading: number): void {
     this.position.copy(pos);
@@ -60,6 +61,7 @@ export class KartBody {
     this.wallContact = false;
     this.stuckTimer = 0;
     this.airTime = 0;
+    this.recoverTimer = 0;
   }
 }
 
@@ -192,12 +194,25 @@ export function stepKart(
   const steerScale = (kart.airborne ? 0.15 : 1) * clamp(grip, 0.12, 1.15);
   kart.yawRate = damp(kart.yawRate, steer * (1.1 + (1 - grip) * 0.35), 11, dt);
   kart.heading += kart.yawRate * (7.2 + Math.abs(kart.speed) * 0.16) * dt * steerScale;
+  if (Math.abs(steerIn) < 0.2 && kart.onAsphalt && !kart.drifting && !kart.airborne) {
+    const roadH = Math.atan2(q.tangent.x, q.tangent.z);
+    kart.heading += wrapPi(roadH - kart.heading) * (1 - Math.exp(-1.7 * dt));
+  }
   kart.heading = wrapPi(kart.heading);
 
   FWD.set(Math.sin(kart.heading), 0, Math.cos(kart.heading));
   kart.position.addScaledVector(FWD, kart.speed * dt);
   if (onRunoff && !kart.airborne) {
-    kart.position.addScaledVector(q.right, -Math.sign(q.lateral) * 2.4 * dt);
+    kart.position.addScaledVector(q.right, -Math.sign(q.lateral) * 4.2 * dt);
+  }
+  if (!kart.onAsphalt && !q.sample.shortcut) {
+    kart.recoverTimer += dt;
+    if (kart.recoverTimer > 2.1) {
+      snapToRibbon(kart, track);
+      return;
+    }
+  } else {
+    kart.recoverTimer = 0;
   }
 
   const q2 = queryTrack(track.samples, kart.position);

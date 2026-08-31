@@ -33,11 +33,13 @@ export class Race {
   laps: number;
   player!: Racer;
   lastResults: RaceResultRow[] = [];
+  autoDrive = false;
   onCue: (kind: "count" | "go" | "item" | "hit" | "finish" | "boost") => void = () => undefined;
 
-  constructor(trackId: TrackId, playerKart: KartId, mobile: boolean, laps = TOTAL_LAPS) {
+  constructor(trackId: TrackId, playerKart: KartId, mobile: boolean, laps = TOTAL_LAPS, autoDrive = false) {
     this.trackId = trackId;
     this.laps = laps;
+    this.autoDrive = autoDrive;
     const def = getTrackDef(trackId);
     this.built = buildTrack(def);
     this.world = decorateTrack(this.built, mobile);
@@ -132,7 +134,7 @@ export class Race {
     for (const r of this.racers) {
       if (r.kart.finished) continue;
       let inp = input.state;
-      if (!r.isPlayer) {
+      if (!r.isPlayer || this.autoDrive) {
         let fire = false;
         inp = thinkAI(r, this.racers, this.built, playerDist, () => {
           fire = true;

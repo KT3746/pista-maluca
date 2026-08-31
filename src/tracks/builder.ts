@@ -86,9 +86,9 @@ function addRibbon(
 
   const roadMat = new THREE.MeshStandardMaterial({
     map: asphalt,
-    roughness: 0.82,
-    metalness: 0.04,
-    color: 0x9aa0aa,
+    roughness: 0.78,
+    metalness: 0.06,
+    color: 0xd0d4dc,
   });
   const road = new THREE.Mesh(roadGeo, roadMat);
   road.receiveShadow = true;
@@ -142,8 +142,8 @@ function makeCenterDash(samples: TrackSample[]): THREE.Mesh {
       on = !on;
     }
     if (!on || a.shortcut) continue;
-    const l = a.position.clone().addScaledVector(a.binormal, -0.08);
-    const r = a.position.clone().addScaledVector(a.binormal, 0.08);
+    const l = a.position.clone().addScaledVector(a.binormal, -0.14);
+    const r = a.position.clone().addScaledVector(a.binormal, 0.14);
     l.y += 0.03;
     r.y += 0.03;
     const base = pos.length / 3;

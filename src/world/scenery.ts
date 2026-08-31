@@ -217,8 +217,8 @@ function addLamps(root: THREE.Group, track: BuiltTrack, color: number, mobile: b
 export function makeLights(track: BuiltTrack, mobile: boolean): THREE.Group {
   const g = new THREE.Group();
   const pal = track.def.palette;
-  const hemi = new THREE.HemisphereLight(pal.ambient, pal.hemiGround, mobile ? 0.7 : 0.9);
-  const dir = new THREE.DirectionalLight(pal.sun, mobile ? 0.7 : 1.05);
+  const hemi = new THREE.HemisphereLight(pal.ambient, pal.hemiGround, mobile ? 1.05 : 1.25);
+  const dir = new THREE.DirectionalLight(pal.sun, mobile ? 1.05 : 1.35);
   dir.position.set(pal.sunDir[0] * 40, pal.sunDir[1] * 40, pal.sunDir[2] * 40);
   if (!mobile) {
     dir.castShadow = true;

@@ -220,9 +220,11 @@ export class Game {
 
   private bootRace(): void {
     this.race?.dispose();
-    const lapsRaw = Number(new URLSearchParams(location.search).get("laps"));
+    const params = new URLSearchParams(location.search);
+    const lapsRaw = Number(params.get("laps"));
     const laps = Number.isFinite(lapsRaw) && lapsRaw > 0 && lapsRaw < 8 ? lapsRaw : undefined;
-    this.race = new Race(this.trackId, this.kartId, isMobileViewport(), laps);
+    const autoDrive = params.get("auto") === "1";
+    this.race = new Race(this.trackId, this.kartId, isMobileViewport(), laps, autoDrive);
     this.race.attachCamera(this.camera);
     this.race.onCue = (kind) => {
       if (kind === "count") this.audio.countdown(this.race?.count ?? 0);

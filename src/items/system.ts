@@ -43,16 +43,23 @@ export class ItemSystem {
 
   setup(track: BuiltTrack): void {
     this.clear();
-    const geo = new THREE.OctahedronGeometry(0.55, 0);
+    const geo = new THREE.OctahedronGeometry(0.72, 0);
     const mat = new THREE.MeshStandardMaterial({
-      color: 0xd4a017,
-      emissive: 0x6a4a08,
-      metalness: 0.4,
-      roughness: 0.3,
+      color: 0xffd24a,
+      emissive: 0xd4a017,
+      emissiveIntensity: 1.4,
+      metalness: 0.35,
+      roughness: 0.25,
     });
     for (const pos of track.itemBoxAnchors) {
       const mesh = new THREE.Mesh(geo, mat.clone());
       mesh.position.copy(pos);
+      const beam = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.06, 3.2, 6),
+        new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.35 }),
+      );
+      beam.position.set(0, 1.1, 0);
+      mesh.add(beam);
       this.group.add(mesh);
       this.boxes.push({ mesh, alive: true, respawn: 0, pos: pos.clone() });
     }
