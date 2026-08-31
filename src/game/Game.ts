@@ -38,7 +38,7 @@ export class Game {
       alpha: false,
       logarithmicDepthBuffer: false,
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileViewport() ? 1.25 : 1.75));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileViewport() ? 1 : 1.75));
     this.renderer.setSize(window.innerWidth, window.innerHeight, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -72,10 +72,10 @@ export class Game {
       requestAnimationFrame(loop);
       if (this.hidden) return;
       try {
-        this.frameCarry += Math.min(0.22, this.clock.getDelta());
+        this.frameCarry += Math.min(0.4, this.clock.getDelta());
         const step = 1 / 60;
         let n = 0;
-        while (this.frameCarry >= step && n < 12) {
+        while (this.frameCarry >= step && n < 24) {
           this.tick(step);
           this.frameCarry -= step;
           n++;
