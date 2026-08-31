@@ -54,12 +54,12 @@ export class ItemSystem {
     for (const pos of track.itemBoxAnchors) {
       const mesh = new THREE.Mesh(geo, mat.clone());
       mesh.position.copy(pos);
-      const beam = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.06, 0.06, 3.2, 6),
-        new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.35 }),
+      const halo = new THREE.Mesh(
+        new THREE.TorusGeometry(0.55, 0.05, 6, 14),
+        new THREE.MeshBasicMaterial({ color: 0xffd24a }),
       );
-      beam.position.set(0, 1.1, 0);
-      mesh.add(beam);
+      halo.rotation.x = Math.PI / 2;
+      mesh.add(halo);
       this.group.add(mesh);
       this.boxes.push({ mesh, alive: true, respawn: 0, pos: pos.clone() });
     }

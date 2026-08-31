@@ -120,13 +120,19 @@ export function createKartMesh(def: KartDef): THREE.Group {
     root.add(w);
   }
 
-  const glow = new THREE.Mesh(
-    new THREE.SphereGeometry(0.12, 6, 6),
+  const glowBar = new THREE.Mesh(
+    new THREE.BoxGeometry(0.7, 0.08, 0.08),
     new THREE.MeshBasicMaterial({ color: def.accent }),
   );
-  glow.position.set(-0.28, 0.38, -1.05);
+  glowBar.position.set(0, 0.42, -1.08);
+  root.add(glowBar);
+  const glow = new THREE.Mesh(
+    new THREE.SphereGeometry(0.1, 6, 6),
+    new THREE.MeshBasicMaterial({ color: def.accent }),
+  );
+  glow.position.set(-0.32, 0.38, -1.05);
   const glow2 = glow.clone();
-  glow2.position.x = 0.28;
+  glow2.position.x = 0.32;
   root.add(glow, glow2);
 
   root.traverse((o) => {

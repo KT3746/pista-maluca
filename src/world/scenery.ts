@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { BuiltTrack } from "../tracks/types";
+import { queryTrack } from "../tracks/builder";
 import { makeSkyTexture } from "./textures";
 
 function instanceOf(geo: THREE.BufferGeometry, mat: THREE.Material, transforms: THREE.Matrix4[]): THREE.InstancedMesh {
@@ -16,6 +17,7 @@ function plantAlong(
   offset: number,
   jitter: number,
   y: number,
+  clearance = 2.4,
 ): THREE.Matrix4[] {
   const mats: THREE.Matrix4[] = [];
   const dummy = new THREE.Object3D();
@@ -26,6 +28,8 @@ function plantAlong(
       const dist = offset + (Math.sin(i * 17.1 + side) * 0.5 + 0.5) * jitter;
       dummy.position.copy(s.position).addScaledVector(s.binormal, side * (s.halfWidth + s.runoff + dist));
       dummy.position.y = s.position.y + y;
+      const q = queryTrack(track.samples, dummy.position);
+      if (Math.abs(q.lateral) < q.halfWidth + clearance) continue;
       dummy.rotation.set(0, s.progress * 40 + side, 0);
       dummy.updateMatrix();
       mats.push(dummy.matrix.clone());
@@ -107,18 +111,20 @@ function decorateCoast(root: THREE.Group, track: BuiltTrack, mobile: boolean): v
   const palmFrond = new THREE.ConeGeometry(1.6, 1.4, 5);
   const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a4030, roughness: 1 });
   const leafMat = new THREE.MeshStandardMaterial({ color: 0x2f5a38, roughness: 0.8 });
-  const trunks = plantAlong(track, mobile ? 18 : 10, 6, 5, 2.2);
-  root.add(instanceOf(palmTrunk, trunkMat, trunks));
-  const fronds = trunks.map((m) => {
-    const o = new THREE.Object3D();
-    o.matrix.copy(m);
-    o.position.setFromMatrixPosition(m);
-    o.position.y += 2.4;
-    o.rotation.y = o.position.x;
-    o.updateMatrix();
-    return o.matrix.clone();
-  });
-  root.add(instanceOf(palmFrond, leafMat, fronds));
+  const trunks = plantAlong(track, mobile ? 18 : 10, 6, 5, 2.2, 2.8);
+  if (trunks.length) {
+    root.add(instanceOf(palmTrunk, trunkMat, trunks));
+    const fronds = trunks.map((m) => {
+      const o = new THREE.Object3D();
+      o.matrix.copy(m);
+      o.position.setFromMatrixPosition(m);
+      o.position.y += 2.4;
+      o.rotation.y = o.position.x;
+      o.updateMatrix();
+      return o.matrix.clone();
+    });
+    root.add(instanceOf(palmFrond, leafMat, fronds));
+  }
 
   addLamps(root, track, 0xffc56a, mobile);
 }
@@ -126,20 +132,39 @@ function decorateCoast(root: THREE.Group, track: BuiltTrack, mobile: boolean): v
 function decorateMountain(root: THREE.Group, track: BuiltTrack, mobile: boolean): void {
   const pine = new THREE.ConeGeometry(1.8, 6.2, 6);
   const pineMat = new THREE.MeshStandardMaterial({ color: 0x1d3324, roughness: 1 });
-  root.add(instanceOf(pine, pineMat, plantAlong(track, mobile ? 14 : 8, 7, 8, 3.1)));
+  const pines = plantAlong(track, mobile ? 14 : 8, 8, 6, 3.1, 3.2);
+  if (pines.length) root.add(instanceOf(pine, pineMat, pines));
 
   const rock = new THREE.DodecahedronGeometry(1.6, 0);
   const rockMat = new THREE.MeshStandardMaterial({ color: 0x5b5852, roughness: 1 });
-  root.add(instanceOf(rock, rockMat, plantAlong(track, 16, 4.5, 3, 0.6)));
+  const rocks = plantAlong(track, 18, 6.5, 2.2, 0.6, 3.5);
+  if (rocks.length) root.add(instanceOf(rock, rockMat, rocks));
 
   const tunnelSamples = track.samples.filter((s) => !s.shortcut && s.progress > 0.48 && s.progress < 0.62);
-  if (tunnelSamples.length > 4) {
-    const path = new THREE.CatmullRomCurve3(tunnelSamples.map((s) => s.position.clone().add(new THREE.Vector3(0, 2.4, 0))));
-    const tube = new THREE.Mesh(
-      new THREE.TubeGeometry(path, Math.max(12, tunnelSamples.length), 5.4, 10, false),
-      new THREE.MeshStandardMaterial({ color: 0x2c3034, roughness: 0.9, side: THREE.BackSide }),
-    );
-    root.add(tube);
+  const stone = new THREE.MeshStandardMaterial({ color: 0x5a5e64, roughness: 0.85 });
+  for (let i = 0; i < tunnelSamples.length; i += 3) {
+    const s = tunnelSamples[i];
+    const hw = s.halfWidth + 1.6;
+    const left = new THREE.Mesh(new THREE.BoxGeometry(0.7, 5.2, 0.7), stone);
+    left.position.copy(s.position).addScaledVector(s.binormal, -hw);
+    left.position.y += 2.4;
+    const right = left.clone();
+    right.position.copy(s.position).addScaledVector(s.binormal, hw);
+    right.position.y += 2.4;
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(hw * 2 + 1.4, 0.55, 0.7), stone);
+    lintel.position.copy(s.position);
+    lintel.position.y += 5.1;
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffd9a0 }));
+    lamp.position.copy(lintel.position);
+    lamp.position.y -= 0.45;
+    root.add(left, right, lintel, lamp);
+  }
+  if (tunnelSamples.length && !mobile) {
+    const mid = tunnelSamples[Math.floor(tunnelSamples.length / 2)];
+    const pl = new THREE.PointLight(0xffe0b0, 16, 22, 2);
+    pl.position.copy(mid.position);
+    pl.position.y += 3.2;
+    root.add(pl);
   }
   addLamps(root, track, 0xffd9a0, mobile);
 }
@@ -201,7 +226,8 @@ function addLamps(root: THREE.Group, track: BuiltTrack, color: number, mobile: b
   const poleMat = new THREE.MeshStandardMaterial({ color: 0x2a2d33, metalness: 0.4, roughness: 0.4 });
   const lamp = new THREE.SphereGeometry(0.18, 6, 6);
   const lampMat = new THREE.MeshBasicMaterial({ color });
-  const poles = plantAlong(track, mobile ? 22 : 14, 1.6, 0.2, 2.6);
+  const poles = plantAlong(track, mobile ? 22 : 14, 3.2, 0.2, 2.6, 2.8);
+  if (!poles.length) return;
   root.add(instanceOf(pole, poleMat, poles));
   const heads = poles.map((m) => {
     const o = new THREE.Object3D();
