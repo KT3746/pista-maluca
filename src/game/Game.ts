@@ -70,8 +70,12 @@ export class Game {
     const loop = () => {
       requestAnimationFrame(loop);
       if (this.hidden) return;
-      const dt = Math.min(0.05, this.clock.getDelta());
-      this.tick(dt);
+      try {
+        const dt = Math.min(0.05, this.clock.getDelta());
+        this.tick(dt);
+      } catch (err) {
+        console.error("Pista Maluca: falha no frame", err);
+      }
     };
     loop();
   }
@@ -392,11 +396,13 @@ export class Game {
       this.camera.fov = 38;
       this.camera.aspect = w / previewH;
       if (w < 820) {
-        this.camera.position.set(3.15, 1.55, 4.55);
-        this.camera.lookAt(0, 0.42, 0);
+        this.camera.position.set(4.05, 1.72, 5.85);
+        this.camera.lookAt(0, 0.48, 0);
+        this.camera.near = 0.7;
       } else {
-        this.camera.position.set(3.4, 1.55, 4.7);
-        this.camera.lookAt(0, 0.42, 0);
+        this.camera.position.set(3.8, 1.65, 5.4);
+        this.camera.lookAt(0, 0.45, 0);
+        this.camera.near = 0.55;
         this.camera.aspect = (w * 0.52) / h;
       }
       this.camera.updateProjectionMatrix();

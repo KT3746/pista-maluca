@@ -82,14 +82,14 @@ export function createKartMesh(def: KartDef): THREE.Group {
   const bodyW = wide ? 1.22 : slim ? 0.82 : 1.02;
   const bodyL = slim ? 1.72 : 1.88;
 
-  const pan = new THREE.Mesh(new THREE.BoxGeometry(bodyW + 0.12, 0.1, bodyL + 0.18), dark);
+  const pan = new THREE.Mesh(new THREE.BoxGeometry(bodyW * 0.92, 0.08, bodyL * 0.92), dark);
   pan.position.y = 0.22;
   const chassis = new THREE.Mesh(new THREE.BoxGeometry(bodyW, 0.28, bodyL), paint);
   chassis.position.y = 0.4;
-  const nose = new THREE.Mesh(new THREE.BoxGeometry(bodyW * 0.82, 0.2, 0.58), paint);
-  nose.position.set(0, 0.38, bodyL * 0.52);
-  const tail = new THREE.Mesh(new THREE.BoxGeometry(bodyW * 0.9, 0.18, 0.42), paint);
-  tail.position.set(0, 0.36, -bodyL * 0.48);
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(bodyW * 0.78, 0.2, 0.52), paint);
+  nose.position.set(0, 0.38, bodyL * 0.48);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(bodyW * 0.78, 0.16, 0.32), paint);
+  tail.position.set(0, 0.36, -bodyL * 0.42);
   root.add(pan, chassis, nose, tail);
 
   if (def.id === "vespa") {
@@ -122,13 +122,9 @@ export function createKartMesh(def: KartDef): THREE.Group {
     root.add(body, s1, s2);
   }
 
-  const wing = new THREE.Mesh(new THREE.BoxGeometry(slim ? 0.72 : wide ? 1.08 : 0.92, 0.07, 0.22), dark);
-  wing.position.set(0, slim ? 0.62 : 0.68, slim ? -0.92 : -1.02);
-  const wingPostL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.16, 0.06), dark);
-  wingPostL.position.set(-0.22, wing.position.y - 0.1, wing.position.z);
-  const wingPostR = wingPostL.clone();
-  wingPostR.position.x = 0.22;
-  root.add(wing, wingPostL, wingPostR);
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(slim ? 0.58 : wide ? 0.98 : 0.82, 0.06, 0.18), dark);
+  wing.position.set(0, slim ? 0.58 : 0.64, slim ? -0.72 : -0.88);
+  root.add(wing);
 
   const seat = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.2, 0.36), dark);
   seat.position.set(0, 0.56, -0.16);
