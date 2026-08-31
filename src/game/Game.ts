@@ -28,6 +28,7 @@ export class Game {
   private menuKart: THREE.Group | null = null;
   private clock = new THREE.Clock();
   private hidden = false;
+  private frameCarry = 0;
 
   constructor(canvas: HTMLCanvasElement, uiRoot: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -71,8 +72,14 @@ export class Game {
       requestAnimationFrame(loop);
       if (this.hidden) return;
       try {
-        const dt = Math.min(0.05, this.clock.getDelta());
-        this.tick(dt);
+        this.frameCarry += Math.min(0.22, this.clock.getDelta());
+        const step = 1 / 60;
+        let n = 0;
+        while (this.frameCarry >= step && n < 12) {
+          this.tick(step);
+          this.frameCarry -= step;
+          n++;
+        }
       } catch (err) {
         console.error("Pista Maluca: falha no frame", err);
       }
