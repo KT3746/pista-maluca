@@ -10,7 +10,7 @@ import { collideKarts, KartBody, stepKart } from "../physics/kart";
 import { buildTrack } from "../tracks/builder";
 import { getTrackDef } from "../tracks/catalog";
 import type { KartId, TrackId } from "../types";
-import { decorateTrack, makeLights } from "../world/scenery";
+import { decorateTrack, makeLights, makeRaceEnvironment } from "../world/scenery";
 import { rubberBand, thinkAI } from "./ai";
 import type { RaceResultRow, Racer } from "./types";
 
@@ -35,6 +35,8 @@ export class Race {
   lastResults: RaceResultRow[] = [];
   autoDrive = false;
   onCue: (kind: "count" | "go" | "item" | "hit" | "finish" | "boost") => void = () => undefined;
+  private headlight: THREE.SpotLight;
+  private lampLights: THREE.PointLight[] = [];
 
   constructor(trackId: TrackId, playerKart: KartId, mobile: boolean, laps = TOTAL_LAPS, autoDrive = false) {
     this.trackId = trackId;
@@ -46,10 +48,23 @@ export class Race {
     this.scene.add(this.world);
     this.scene.add(makeLights(this.built, mobile));
     this.scene.fog = new THREE.FogExp2(def.palette.fog, def.palette.fogDensity);
+    this.scene.environment = makeRaceEnvironment();
     this.scene.add(this.items.group);
     this.scene.add(this.fx.group);
     this.items.setup(this.built);
     this.spawn(playerKart);
+
+    this.headlight = new THREE.SpotLight(0xfff3d6, 7.2, 64, 0.55, 0.32, 1.0);
+    this.headlight.castShadow = false;
+    this.scene.add(this.headlight);
+    this.scene.add(this.headlight.target);
+    const lampColor = def.mood === "neon" ? 0xff8ad4 : 0xffc56a;
+    const count = mobile ? 3 : 4;
+    for (let i = 0; i < count; i++) {
+      const pl = new THREE.PointLight(lampColor, 0, 26, 1.7);
+      this.scene.add(pl);
+      this.lampLights.push(pl);
+    }
   }
 
   private spawn(playerKart: KartId): void {
@@ -82,6 +97,9 @@ export class Race {
       const mesh = createKartMesh(getKart(info.kartId));
       mesh.position.copy(pos);
       mesh.rotation.y = start.heading;
+      mesh.frustumCulled = false;
+      mesh.scale.setScalar(1.12);
+      mesh.visible = true;
       this.scene.add(mesh);
       const racer: Racer = {
         ...info,
@@ -99,12 +117,15 @@ export class Race {
   }
 
   attachCamera(camera: THREE.PerspectiveCamera): void {
-    this.cameraRig.attach(camera, this.player.kart);
+    this.cameraRig.attach(camera, this.player.kart, this.built);
+    this.syncCarLights();
   }
 
   update(dt: number, input: Input, camera: THREE.PerspectiveCamera): void {
+    input.poll();
     if (this.paused) {
-      this.cameraRig.update(camera, this.player.kart, dt, true);
+      this.cameraRig.update(camera, this.player.kart, dt, true, this.built);
+      this.syncCarLights();
       return;
     }
 
@@ -123,7 +144,8 @@ export class Race {
     }
 
     if (this.phase === "finished") {
-      this.cameraRig.update(camera, this.player.kart, dt, false);
+      this.cameraRig.update(camera, this.player.kart, dt, false, this.built);
+      this.syncCarLights();
       return;
     }
 
@@ -194,6 +216,7 @@ export class Race {
 
     this.rank();
     for (const r of this.racers) {
+      r.mesh.visible = true;
       r.mesh.position.copy(r.kart.position);
       r.mesh.rotation.order = "YXZ";
       r.mesh.rotation.y = r.kart.heading;
@@ -206,7 +229,8 @@ export class Race {
 
     this.fx.spawnDrift(this.player.kart);
     this.fx.update(dt);
-    this.cameraRig.update(camera, this.player.kart, dt, false);
+    this.cameraRig.update(camera, this.player.kart, dt, false, this.built);
+    this.syncCarLights();
 
     if (this.racers.every((r) => r.kart.finished) || this.player.kart.finished) {
       const allDone = this.racers.every((r) => r.kart.finished);
@@ -217,12 +241,41 @@ export class Race {
     }
   }
 
+  private syncCarLights(): void {
+    const k = this.player.kart;
+    const back = new THREE.Vector3(-Math.sin(k.heading), 0, -Math.cos(k.heading));
+    const fwd = new THREE.Vector3(Math.sin(k.heading), 0, Math.cos(k.heading));
+    this.headlight.position.copy(k.position).addScaledVector(back, 0.2).add(new THREE.Vector3(0, 1.15, 0));
+    this.headlight.target.position.copy(k.position).addScaledVector(fwd, 18).add(new THREE.Vector3(0, 0.4, 0));
+    this.headlight.target.updateMatrixWorld();
+
+    const lamps = this.built.lampPositions;
+    if (!lamps.length) {
+      for (const l of this.lampLights) l.intensity = 0;
+      return;
+    }
+    const ranked = lamps
+      .map((p) => ({ p, d: p.distanceToSquared(k.position) }))
+      .sort((a, b) => a.d - b.d);
+    this.lampLights.forEach((light, i) => {
+      const hit = ranked[i];
+      if (!hit) {
+        light.intensity = 0;
+        return;
+      }
+      light.position.copy(hit.p);
+      const dist = Math.sqrt(hit.d);
+      light.intensity = dist < 48 ? 28 * (1 - dist / 52) : 0;
+    });
+  }
+
   private holdGrid(dt: number, camera: THREE.PerspectiveCamera): void {
     for (const r of this.racers) {
       r.mesh.position.copy(r.kart.position);
       r.mesh.rotation.y = r.kart.heading;
     }
-    this.cameraRig.update(camera, this.player.kart, dt, false);
+    this.cameraRig.update(camera, this.player.kart, dt, false, this.built);
+    this.syncCarLights();
   }
 
   private rank(): void {
@@ -269,6 +322,7 @@ export class Race {
   }
 
   dispose(): void {
+    this.scene.environment = null;
     this.scene.traverse((o) => {
       if (o instanceof THREE.Mesh) {
         o.geometry.dispose();

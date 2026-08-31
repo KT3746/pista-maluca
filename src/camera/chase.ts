@@ -1,46 +1,81 @@
 import * as THREE from "three";
 import { damp } from "../config";
 import type { KartBody } from "../physics/kart";
+import type { BuiltTrack } from "../tracks/types";
 
+/**
+ * Third-person chase: sit behind and a little above the kart, look down the
+ * ribbon — never parked on the roof looking into the asphalt.
+ */
 export class ChaseCamera {
   private look = new THREE.Vector3();
   private desired = new THREE.Vector3();
-  private shakeVec = new THREE.Vector3();
-  fov = 58;
+  fov = 48;
+  private snapTime = 0;
 
-  attach(camera: THREE.PerspectiveCamera, kart: KartBody): void {
-    const back = new THREE.Vector3(-Math.sin(kart.heading), 0, -Math.cos(kart.heading));
-    camera.position.copy(kart.position).addScaledVector(back, 6.4).add(new THREE.Vector3(0, 2.6, 0));
-    this.look.copy(kart.position).add(new THREE.Vector3(0, 1.05, 0));
-    camera.lookAt(this.look);
+  attach(camera: THREE.PerspectiveCamera, kart: KartBody, _track: BuiltTrack | null = null): void {
+    this.snapTime = 2.2;
+    camera.near = 1.05;
+    camera.far = 800;
+    this.place(camera, kart, true, 1 / 60);
   }
 
-  update(camera: THREE.PerspectiveCamera, kart: KartBody, dt: number, paused: boolean): void {
+  update(
+    camera: THREE.PerspectiveCamera,
+    kart: KartBody,
+    dt: number,
+    paused: boolean,
+    _track: BuiltTrack | null = null,
+  ): void {
+    this.place(camera, kart, paused, dt);
+  }
+
+  private place(camera: THREE.PerspectiveCamera, kart: KartBody, paused: boolean, dt: number): void {
+    const phone = typeof window !== "undefined" && window.innerWidth < 820;
+    const speed = Math.abs(kart.speed);
     const boost = kart.boostTime > 0 ? 1 : 0;
-    const backDist = 6.8 + Math.abs(kart.speed) * 0.04 - boost * 0.35;
-    const height = 3.15 + Math.abs(kart.speed) * 0.016;
-    const back = new THREE.Vector3(-Math.sin(kart.heading), 0, -Math.cos(kart.heading));
-    const fwd = new THREE.Vector3(Math.sin(kart.heading), 0, Math.cos(kart.heading));
-    this.desired.copy(kart.position).addScaledVector(back, backDist).add(new THREE.Vector3(0, height, 0));
-    if (paused) return;
-    camera.position.x = damp(camera.position.x, this.desired.x, 7.2, dt);
-    camera.position.y = damp(camera.position.y, this.desired.y, 6.4, dt);
-    camera.position.z = damp(camera.position.z, this.desired.z, 7.2, dt);
+    const back = (phone ? 16.8 : 11.8) + speed * 0.1;
+    const height = (phone ? 5.6 : 3.55) + speed * 0.014;
+    const ahead = (phone ? 26 : 16) + speed * 0.16;
+    const sin = Math.sin(kart.heading);
+    const cos = Math.cos(kart.heading);
 
-    const lookTarget = kart.position.clone().addScaledVector(fwd, 6.5 + kart.speed * 0.08).add(new THREE.Vector3(0, 1.05, 0));
-    this.look.x = damp(this.look.x, lookTarget.x, 8, dt);
-    this.look.y = damp(this.look.y, lookTarget.y, 8, dt);
-    this.look.z = damp(this.look.z, lookTarget.z, 8, dt);
+    this.desired.set(
+      kart.position.x - sin * back,
+      kart.position.y + height,
+      kart.position.z - cos * back,
+    );
+    const lookTarget = new THREE.Vector3(
+      kart.position.x + sin * ahead,
+      kart.position.y + (phone ? 1.55 : 1.2),
+      kart.position.z + cos * ahead,
+    );
 
-    if (kart.shake > 0) {
-      this.shakeVec.set((Math.random() - 0.5) * kart.shake * 0.35, (Math.random() - 0.5) * kart.shake * 0.25, 0);
-      camera.position.add(this.shakeVec);
+    const snap = paused || this.snapTime > 0;
+    if (this.snapTime > 0) this.snapTime = Math.max(0, this.snapTime - dt);
+
+    if (snap) {
+      camera.position.copy(this.desired);
+      this.look.copy(lookTarget);
+    } else {
+      camera.position.x = damp(camera.position.x, this.desired.x, 5.8, dt);
+      camera.position.y = damp(camera.position.y, this.desired.y, 5.2, dt);
+      camera.position.z = damp(camera.position.z, this.desired.z, 5.8, dt);
+      this.look.x = damp(this.look.x, lookTarget.x, 6.4, dt);
+      this.look.y = damp(this.look.y, lookTarget.y, 6.4, dt);
+      this.look.z = damp(this.look.z, lookTarget.z, 6.4, dt);
     }
 
+    if (camera.position.distanceTo(kart.position) < (phone ? 13.5 : 8.5)) {
+      camera.position.copy(this.desired);
+    }
+
+    camera.up.set(0, 1, 0);
     camera.lookAt(this.look);
-    const wantFov = 56 + Math.abs(kart.speed) * 0.22 + boost * 7;
-    this.fov = damp(this.fov, wantFov, 4, dt);
+    const wantFov = (phone ? 52 : 52) + speed * 0.22 + boost * 5;
+    this.fov = snap ? wantFov : damp(this.fov, wantFov, 3.6, dt);
     camera.fov = this.fov;
+    camera.near = 1.05;
     camera.updateProjectionMatrix();
   }
 }

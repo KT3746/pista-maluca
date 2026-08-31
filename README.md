@@ -12,7 +12,7 @@ Corrida de kart **original** no navegador. Câmera de perseguição, asfalto com
 4. Veja as estatísticas do kart antes de confirmar. Cada chassi dirige diferente.
 5. Complete as voltas. Caixas douradas no asfalto enchem o slot de item.
 
-O jogo detecta PC e celular sozinho. No desktop, teclado. No toque, controles grandes na tela.
+O jogo detecta PC e celular sozinho. Controles na tela aparecem se a janela for estreita (menos de 820px), se o ponteiro for grosso, ou se o aparelho tiver toque. No desktop largo, teclado. No tablet, teclado e toque juntos.
 
 ## Controles
 

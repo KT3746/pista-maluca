@@ -9,6 +9,8 @@ document.body.addEventListener(
   "touchmove",
   (e) => {
     if (!document.body.classList.contains("is-race")) return;
+    const t = e.target as HTMLElement | null;
+    if (t?.closest("#touch, .pad-btn, .stick-wrap, .overlay, .icon-btn")) return;
     e.preventDefault();
   },
   { passive: false },

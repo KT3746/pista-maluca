@@ -1,5 +1,5 @@
 import type { InputState } from "../types";
-import { clamp, isTouchPreferred } from "../config";
+import { clamp, wantsTouchControls } from "../config";
 
 export class Input {
   state: InputState = { throttle: 0, brake: 0, steer: 0, drift: false, item: false, pause: false };
@@ -11,9 +11,13 @@ export class Input {
   private pad = { throttle: false, brake: false, drift: false, item: false };
   private listeners: Array<() => void> = [];
   private raceLock = false;
+  private boundLayer: HTMLElement | null = null;
+  private padPointers = new Map<number, keyof typeof this.pad>();
+  private steerPointer: number | null = null;
+  private windowPadBound = false;
 
   constructor() {
-    this.touchMode = isTouchPreferred();
+    this.touchMode = wantsTouchControls();
   }
 
   setRaceLock(on: boolean): void {
@@ -29,6 +33,8 @@ export class Input {
     this.steerTouch = 0;
     this.itemPressed = false;
     this.pausePressed = false;
+    this.padPointers.clear();
+    this.steerPointer = null;
     this.state.throttle = 0;
     this.state.brake = 0;
     this.state.steer = 0;
@@ -52,64 +58,117 @@ export class Input {
       window.removeEventListener("keyup", up);
     });
 
-    root.addEventListener(
-      "touchmove",
-      (e) => {
-        if (!this.raceLock) return;
-        e.preventDefault();
-      },
-      { passive: false },
-    );
+    const onTouchMove = (e: TouchEvent) => {
+      if (!this.raceLock) return;
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("#touch, .pad-btn, .stick-wrap, .overlay, .icon-btn")) return;
+      e.preventDefault();
+    };
+    root.addEventListener("touchmove", onTouchMove, { passive: false });
+    this.listeners.push(() => root.removeEventListener("touchmove", onTouchMove));
   }
 
   bindTouch(layer: HTMLElement): void {
+    if (this.boundLayer === layer) {
+      this.touchMode = true;
+      return;
+    }
+    this.boundLayer = layer;
     this.touchMode = true;
     const stick = layer.querySelector(".stick-wrap") as HTMLElement | null;
     const knob = layer.querySelector(".stick-knob") as HTMLElement | null;
+
     const setPad = (name: keyof typeof this.pad, on: boolean) => {
       this.pad[name] = on;
       const btn = layer.querySelector(`[data-pad="${name}"]`);
       btn?.classList.toggle("active", on);
     };
 
+    const onWindowUp = (e: Event) => {
+      const pid = "pointerId" in e ? (e as PointerEvent).pointerId : -1;
+      const name = this.padPointers.get(pid) ?? this.padPointers.get(-1);
+      this.padPointers.delete(pid);
+      this.padPointers.delete(-1);
+      if (name) {
+        let still = false;
+        for (const v of this.padPointers.values()) if (v === name) still = true;
+        if (!still) {
+          this.pad[name] = false;
+          this.boundLayer?.querySelector(`[data-pad="${name}"]`)?.classList.remove("active");
+        }
+      }
+      if (this.steerPointer === pid) {
+        this.steerPointer = null;
+        this.steerTouch = 0;
+        const knobEl = this.boundLayer?.querySelector(".stick-knob") as HTMLElement | null;
+        if (knobEl) knobEl.style.transform = "translate(0,0)";
+      }
+    };
+    if (!this.windowPadBound) {
+      this.windowPadBound = true;
+      window.addEventListener("pointerup", onWindowUp, true);
+      window.addEventListener("pointercancel", onWindowUp, true);
+      window.addEventListener("mouseup", onWindowUp, true);
+    }
+
     if (stick && knob) {
       const update = (cx: number) => {
         const r = stick.getBoundingClientRect();
         const x = (cx - (r.left + r.width / 2)) / (r.width * 0.5);
         this.steerTouch = clamp(x, -1, 1);
-        const kx = clamp(x, -1, 1) * 36;
-        knob.style.transform = `translate(${kx}px, 0px)`;
+        knob.style.transform = `translate(${clamp(x, -1, 1) * 42}px, 0px)`;
       };
-      const end = () => {
-        this.steerTouch = 0;
-        knob.style.transform = "translate(0,0)";
-      };
-      const onMove = (e: PointerEvent) => update(e.clientX);
       stick.addEventListener("pointerdown", (e) => {
-        stick.setPointerCapture(e.pointerId);
+        e.preventDefault();
+        e.stopPropagation();
+        this.steerPointer = e.pointerId;
+        try {
+          stick.setPointerCapture(e.pointerId);
+        } catch {
+          /* capture is optional */
+        }
         update(e.clientX);
       });
-      stick.addEventListener("pointermove", onMove);
-      stick.addEventListener("pointerup", end);
-      stick.addEventListener("pointercancel", end);
+      stick.addEventListener("pointermove", (e) => {
+        if (this.steerPointer === e.pointerId) update(e.clientX);
+      });
     }
 
-    layer.querySelectorAll("[data-pad]").forEach((el) => {
+    layer.querySelectorAll("[data-pad]").forEach((node) => {
+      const el = node as HTMLElement;
       const name = el.getAttribute("data-pad") as keyof typeof this.pad;
-      const on = (e: Event) => {
-        e.preventDefault();
-        setPad(name, true);
-        if (name === "item") this.itemPressed = true;
-      };
-      const off = (e: Event) => {
-        e.preventDefault();
-        setPad(name, false);
-      };
-      el.addEventListener("pointerdown", on);
-      el.addEventListener("pointerup", off);
-      el.addEventListener("pointerleave", off);
-      el.addEventListener("pointercancel", off);
+      el.addEventListener(
+        "pointerdown",
+        (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.padPointers.set(e.pointerId, name);
+          setPad(name, true);
+          if (name === "item") this.itemPressed = true;
+          try {
+            el.setPointerCapture(e.pointerId);
+          } catch {
+            /* optional */
+          }
+        },
+        { capture: true },
+      );
+      el.addEventListener(
+        "mousedown",
+        (e) => {
+          e.preventDefault();
+          this.padPointers.set(-1, name);
+          setPad(name, true);
+          if (name === "item") this.itemPressed = true;
+        },
+        { capture: true },
+      );
+      el.addEventListener("contextmenu", (ev) => ev.preventDefault());
     });
+  }
+
+  refreshTouchFlag(): void {
+    this.touchMode = wantsTouchControls() || !!this.boundLayer;
   }
 
   poll(): InputState {
@@ -120,7 +179,7 @@ export class Input {
     const right = k.has("ArrowRight") || k.has("KeyD");
     const drift = k.has("ShiftLeft") || k.has("ShiftRight") || k.has("Space") || this.pad.drift;
     let steer = (right ? 1 : 0) - (left ? 1 : 0);
-    if (this.touchMode) steer = this.steerTouch || steer;
+    if (this.steerTouch) steer = this.steerTouch;
     this.state.throttle = this.pad.throttle || up ? 1 : 0;
     this.state.brake = this.pad.brake || down ? 1 : 0;
     this.state.steer = clamp(steer, -1, 1);

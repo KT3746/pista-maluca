@@ -71,5 +71,6 @@ export interface BuiltTrack {
   length: number;
   group: THREE.Group;
   itemBoxAnchors: THREE.Vector3[];
+  lampPositions: THREE.Vector3[];
   startPose: { position: THREE.Vector3; heading: number };
 }

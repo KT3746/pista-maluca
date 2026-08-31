@@ -41,27 +41,45 @@ export class ItemSystem {
   group = new THREE.Group();
   private clock = 0;
 
+  constructor() {
+    this.group.frustumCulled = false;
+  }
+
   setup(track: BuiltTrack): void {
     this.clear();
-    const geo = new THREE.OctahedronGeometry(0.72, 0);
-    const mat = new THREE.MeshStandardMaterial({
-      color: 0xffd24a,
-      emissive: 0xd4a017,
-      emissiveIntensity: 1.4,
-      metalness: 0.35,
-      roughness: 0.25,
-    });
-    for (const pos of track.itemBoxAnchors) {
-      const mesh = new THREE.Mesh(geo, mat.clone());
-      mesh.position.copy(pos);
-      const halo = new THREE.Mesh(
-        new THREE.TorusGeometry(0.55, 0.05, 6, 14),
-        new THREE.MeshBasicMaterial({ color: 0xffd24a }),
-      );
-      halo.rotation.x = Math.PI / 2;
-      mesh.add(halo);
-      this.group.add(mesh);
-      this.boxes.push({ mesh, alive: true, respawn: 0, pos: pos.clone() });
+    const cube = new THREE.BoxGeometry(0.95, 0.95, 0.95);
+    const gold = new THREE.MeshBasicMaterial({ color: 0xffd24a });
+    const rim = new THREE.MeshBasicMaterial({ color: 0x5a3a08 });
+    const main = track.samples.filter((s) => !s.shortcut);
+    for (const progress of track.def.itemBoxes) {
+      let sample = main[0];
+      let best = 1;
+      for (const s of main) {
+        const d = Math.abs(s.progress - progress);
+        const wrap = Math.min(d, 1 - d);
+        if (wrap < best) {
+          best = wrap;
+          sample = s;
+        }
+      }
+      const lanes = [-2.4, 0, 2.4].filter((lane) => Math.abs(lane) < sample.halfWidth - 1.1);
+      for (const lane of lanes) {
+        const group = new THREE.Group();
+        const body = new THREE.Mesh(cube, gold.clone());
+        const band = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.1, 1.02), rim);
+        band.position.y = 0.42;
+        const band2 = band.clone();
+        band2.position.y = -0.42;
+        group.add(body, band, band2);
+        group.position.copy(sample.position).addScaledVector(sample.binormal, lane);
+        group.position.y += 1.2;
+        group.frustumCulled = false;
+        group.traverse((o) => {
+          if (o instanceof THREE.Mesh) o.frustumCulled = false;
+        });
+        this.group.add(group);
+        this.boxes.push({ mesh: group, alive: true, respawn: 0, pos: group.position.clone() });
+      }
     }
   }
 
@@ -160,10 +178,11 @@ export class ItemSystem {
         continue;
       }
       box.mesh.rotation.y += dt * 2.2;
-      box.mesh.position.y = box.pos.y + Math.sin(this.clock * 3 + box.pos.x) * 0.12;
+      box.mesh.position.y = box.pos.y + Math.sin(this.clock * 3 + box.pos.x) * 0.16;
+      box.mesh.visible = true;
       for (const r of racers) {
         if (r.item || r.kart.finished) continue;
-        if (r.kart.position.distanceTo(box.mesh.position) < 2.3 + (r.kart.magnetTime > 0 ? 3.5 : 0)) {
+        if (r.kart.position.distanceTo(box.mesh.position) < 2.6 + (r.kart.magnetTime > 0 ? 3.5 : 0)) {
           r.item = this.roll(r.place);
           box.alive = false;
           box.respawn = 6.5;

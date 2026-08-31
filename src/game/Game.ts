@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { AudioEngine } from "../audio/engine";
-import { isMobileViewport, isTouchPreferred } from "../config";
+import { forceRacePadsVisible, isMobileViewport, isPhoneViewport, wantsTouchControls } from "../config";
 import { Input } from "../input/input";
 import { Championship } from "../race/championship";
 import { Race } from "../race/race";
@@ -28,6 +28,8 @@ export class Game {
   private menuKart: THREE.Group | null = null;
   private clock = new THREE.Clock();
   private hidden = false;
+  private lastTickMs = 0;
+  private rafPulse = false;
 
   constructor(canvas: HTMLCanvasElement, uiRoot: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -35,14 +37,15 @@ export class Game {
       antialias: !isMobileViewport(),
       powerPreference: "high-performance",
       alpha: false,
+      logarithmicDepthBuffer: false,
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileViewport() ? 1.25 : 1.75));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileViewport() ? 1 : 1.75));
     this.renderer.setSize(window.innerWidth, window.innerHeight, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = 1.42;
     this.renderer.shadowMap.enabled = !isMobileViewport();
-    this.camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 520);
+    this.camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.55, 720);
     this.ui = new UI(uiRoot);
     this.ui.onAction = (a) => this.handle(a);
     this.input.bind(document.body);
@@ -50,6 +53,7 @@ export class Game {
     this.showTitle();
 
     window.addEventListener("resize", () => this.resize());
+    window.addEventListener("orientationchange", () => this.resize());
     document.addEventListener("visibilitychange", () => {
       this.hidden = document.hidden;
       if (this.race && document.hidden) this.pauseRace();
@@ -65,24 +69,51 @@ export class Game {
 
   start(): void {
     this.clock.start();
-    const loop = () => {
-      requestAnimationFrame(loop);
+    this.lastTickMs = performance.now();
+    const sim = () => {
       if (this.hidden) return;
-      const dt = Math.min(0.05, this.clock.getDelta());
-      this.tick(dt);
+      const now = performance.now();
+      let dt = (now - this.lastTickMs) / 1000;
+      if (dt < 0.008) return;
+      this.lastTickMs = now;
+      dt = Math.min(0.12, dt);
+      try {
+        this.tick(dt);
+      } catch (err) {
+        console.error("Pista Maluca: falha no frame", err);
+      }
+    };
+    const loop = () => {
+      this.rafPulse = true;
+      requestAnimationFrame(loop);
+      sim();
     };
     loop();
+    // If WebGL/rAF stalls (software GL, low-power Safari), keep the race clock alive.
+    window.setInterval(() => {
+      if (this.rafPulse) {
+        this.rafPulse = false;
+        return;
+      }
+      sim();
+    }, 50);
   }
 
   private setupMenuScene(): void {
-    this.menuScene.fog = new THREE.FogExp2(0x0c1220, 0.02);
-    this.menuScene.add(new THREE.HemisphereLight(0x1a2438, 0x1b140e, 0.9));
-    const dir = new THREE.DirectionalLight(0xc9d6ee, 1);
-    dir.position.set(-8, 14, 10);
+    this.menuScene.fog = new THREE.FogExp2(0x0c1220, 0.008);
+    this.menuScene.add(new THREE.HemisphereLight(0x6a7c9a, 0x3a2e20, 1.45));
+    const dir = new THREE.DirectionalLight(0xf2f6fc, 1.6);
+    dir.position.set(-6, 12, 10);
     this.menuScene.add(dir);
+    const fill = new THREE.DirectionalLight(0xffc56a, 0.7);
+    fill.position.set(8, 4, -6);
+    this.menuScene.add(fill);
+    const key = new THREE.PointLight(0xffe8b0, 18, 16, 1.6);
+    key.position.set(1.4, 2.4, 2.2);
+    this.menuScene.add(key);
     const floor = new THREE.Mesh(
       new THREE.CircleGeometry(18, 36),
-      new THREE.MeshStandardMaterial({ color: 0x16181e, roughness: 0.85 }),
+      new THREE.MeshStandardMaterial({ color: 0x242830, roughness: 0.7, metalness: 0.12 }),
     );
     floor.rotation.x = -Math.PI / 2;
     this.menuScene.add(floor);
@@ -109,6 +140,7 @@ export class Game {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h, false);
+    this.syncChrome();
   }
 
   private showTitle(): void {
@@ -119,9 +151,21 @@ export class Game {
 
   private syncChrome(): void {
     const racing = this.view === "race";
+    const touch = isPhoneViewport() || wantsTouchControls();
     document.body.classList.toggle("is-race", racing);
+    document.body.classList.toggle("touch-on", touch);
+    document.body.classList.toggle("is-garage", this.view === "karts");
     document.body.dataset.view = this.view;
     this.input.setRaceLock(racing);
+    this.input.refreshTouchFlag();
+    if (racing) this.ensureTouchLayer();
+  }
+
+  private ensureTouchLayer(): void {
+    const touch = document.getElementById("touch");
+    if (!touch) return;
+    forceRacePadsVisible(touch);
+    this.input.bindTouch(touch);
   }
 
   private handle(a: { type: string; id?: string }): void {
@@ -237,6 +281,14 @@ export class Game {
   }
 
   private bootRace(): void {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    this.renderer.setScissorTest(false);
+    this.renderer.setViewport(0, 0, w, h);
+    this.camera.clearViewOffset();
+    this.camera.near = 0.85;
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
     this.race?.dispose();
     const params = new URLSearchParams(location.search);
     const lapsRaw = Number(params.get("laps"));
@@ -271,9 +323,7 @@ export class Game {
       }
     };
     this.view = "race";
-    this.ui.raceHud(isTouchPreferred());
-    const touch = document.getElementById("touch");
-    if (touch) this.input.bindTouch(touch);
+    this.ui.raceHud(true);
     this.syncChrome();
     this.audio.countdown(3);
   }
@@ -308,13 +358,15 @@ export class Game {
     this.audio.silence();
     this.camera.position.set(4.2, 2.4, 5.6);
     this.camera.lookAt(0, 0.6, 0);
-    this.camera.fov = 58;
+    this.camera.fov = 52;
+    this.camera.near = 0.55;
     this.camera.updateProjectionMatrix();
     this.showTitle();
   }
 
   private tick(dt: number): void {
     if (this.view === "race" && this.race) {
+      this.ensureTouchLayer();
       if (this.input.consumePause()) this.togglePause();
       this.race.update(dt, this.input, this.camera);
       const p = this.race.player;
@@ -345,15 +397,66 @@ export class Game {
         this.audio.engine(rpm, this.input.state.throttle, p.kart.boostTime > 0);
         this.audio.drift(p.kart.drifting ? 0.7 + p.kart.driftCharge * 0.3 : 0);
       }
+      this.renderer.setClearColor(0x1a2a48, 1);
+      this.renderer.setScissorTest(false);
+      this.renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
       this.renderer.render(this.race.scene, this.camera);
       return;
     }
 
-    if (this.menuKart) this.menuKart.rotation.y += dt * 0.35;
+    if (this.menuKart) this.menuKart.rotation.y += dt * 0.45;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    if (this.view === "karts") {
+      const previewH = Math.max(220, Math.floor(h * 0.48));
+      this.camera.clearViewOffset();
+      this.camera.near = 0.25;
+      this.camera.far = 80;
+      this.camera.fov = 38;
+      this.camera.aspect = w / previewH;
+      if (w < 820) {
+        this.camera.position.set(4.05, 1.72, 5.85);
+        this.camera.lookAt(0, 0.48, 0);
+        this.camera.near = 0.7;
+      } else {
+        this.camera.position.set(3.8, 1.65, 5.4);
+        this.camera.lookAt(0, 0.45, 0);
+        this.camera.near = 0.55;
+        this.camera.aspect = (w * 0.52) / h;
+      }
+      this.camera.updateProjectionMatrix();
+      this.renderer.setClearColor(0x0b1018, 1);
+      this.renderer.setScissorTest(true);
+      if (w < 820) {
+        this.renderer.setViewport(0, h - previewH, w, previewH);
+        this.renderer.setScissor(0, h - previewH, w, previewH);
+      } else {
+        const previewW = Math.floor(w * 0.56);
+        this.renderer.setViewport(w - previewW, 0, previewW, h);
+        this.renderer.setScissor(w - previewW, 0, previewW, h);
+      }
+      this.renderer.render(this.menuScene, this.camera);
+      this.renderer.setScissorTest(false);
+      this.camera.aspect = w / h;
+      this.camera.updateProjectionMatrix();
+      this.audio.engine(0.12, 0.04, false);
+      this.audio.drift(0);
+      return;
+    }
+
+    this.camera.clearViewOffset();
     this.camera.position.x = 4.2 + Math.sin(performance.now() * 0.00025) * 0.4;
+    this.camera.position.y = 2.4;
+    this.camera.position.z = 5.6;
     this.camera.lookAt(0, 0.6, 0);
+    this.camera.fov = 52;
+    this.camera.near = 0.55;
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
     this.audio.engine(0.12, 0.04, false);
     this.audio.drift(0);
+    this.renderer.setScissorTest(false);
+    this.renderer.setViewport(0, 0, w, h);
     this.renderer.render(this.menuScene, this.camera);
   }
 }

@@ -1,4 +1,4 @@
-import { TOTAL_LAPS, formatTime, isTouchPreferred } from "../config";
+import { TOTAL_LAPS, formatTime } from "../config";
 import { KARTS } from "../karts/roster";
 import { TRACKS } from "../tracks/catalog";
 import { ITEM_LABEL } from "../items/system";
@@ -108,26 +108,21 @@ export class UI {
       </section>`);
   }
 
-  controls(back = "back"): void {
-    const touch = isTouchPreferred();
+  controls(_back = "back"): void {
     this.set(`
       <section class="screen solid">
         <div class="screen-body">
           <div class="eyebrow">Como dirigir</div>
           <h2>Controles</h2>
           <div class="sheet">
-            ${
-              touch
-                ? `<p><b>Esquerda:</b> direcional (arraste). <b>Direita:</b> Acelera, Freio, Drift e Item.</p>`
-                : `<p><b>Acelerar</b> ↑ ou W · <b>Frear</b> ↓ ou S · <b>Dirigir</b> ← → ou A D</p>
-                   <p><b>Drift</b> Shift ou Espaço · <b>Item</b> E ou Ctrl · <b>Pausa</b> Esc · <b>Mudo</b> no menu</p>`
-            }
+            <p><b>No celular:</b> à esquerda o direcional (arraste o dedo). À direita: <b>Acelera</b>, <b>Freio</b>, <b>Drift</b> e <b>Item</b>. Depois do VAI!, segure Acelera para o kart andar.</p>
+            <p><b>No teclado:</b> W ou ↑ acelera · S ou ↓ freia · A D dirige · Shift ou Espaço faz drift · E usa o item · Esc pausa.</p>
             <p>Segure o drift numa curva e solte limpo para um turbo curto. Caixas douradas no asfalto enchem o slot.</p>
             <p><b>Disco Ímã</b> segue a fita da pista e busca quem está à frente. <b>Sabão</b> deixa uma poça escorregadia atrás. <b>Carga Turbo</b> empurra. <b>Fuligem</b> cega e atrasa quem vem atrás. <b>Gancho</b> puxa a próxima caixa dourada.</p>
           </div>
         </div>
         <div class="screen-foot">
-          <button type="button" class="btn primary" data-act="${back}">Voltar</button>
+          <button type="button" class="btn primary" data-act="${_back}">Voltar</button>
         </div>
       </section>`);
   }
@@ -165,11 +160,12 @@ export class UI {
       </button>`;
     }).join("");
     this.set(`
-      <section class="screen solid">
-        <div class="screen-body">
+      <section class="screen garage">
+        <div class="garage-stage" aria-hidden="true"></div>
+        <div class="screen-body garage-body">
           <div class="eyebrow">${cup ? "Campeonato curto" : "Corrida rápida"}</div>
           <h2>Escolha o kart</h2>
-          <div class="grid">${cards}</div>
+          <div class="grid kart-grid">${cards}</div>
         </div>
         <div class="screen-foot">
           <button type="button" class="btn ghost" data-act="back">Voltar</button>
@@ -201,38 +197,34 @@ export class UI {
       </section>`);
   }
 
-  raceHud(touch: boolean): void {
+  raceHud(_touch = true): void {
     this.set(`
       <div class="hud">
         <div class="hud-top">
           <div class="pos"><span id="hud-pos">P4</span><small id="hud-name">—</small></div>
-          <div class="lap-box"><div class="kicker">Volta</div><div class="num" id="hud-lap">1/3</div></div>
         </div>
-        <div class="hud-mid">
+        <div class="lap-box"><div class="kicker">Volta</div><div class="num" id="hud-lap">1/3</div></div>
+        <div class="hud-map">
           <canvas id="minimap" width="264" height="264"></canvas>
-          <div class="item-slot" id="hud-item">vazio</div>
         </div>
         <div class="hud-bot">
           <div class="speed-box"><div class="kicker">km/h</div><div class="num" id="hud-spd">0</div></div>
+          <div class="item-slot" id="hud-item">VAZIO</div>
         </div>
       </div>
       <div class="countdown hidden" id="countdown">3</div>
       <div class="banner hidden" id="banner"></div>
       <div class="soot-veil hidden" id="soot-veil"></div>
       <button type="button" class="icon-btn pause-btn" data-act="pause" aria-label="Pausa">II</button>
-      ${
-        touch
-          ? `<div class="touch" id="touch">
-              <div class="zone stick-wrap"><div class="stick-base"></div><div class="stick-knob"></div></div>
-              <div class="zone pad-right">
-                <button type="button" class="pad-btn item" data-pad="item">Item</button>
-                <button type="button" class="pad-btn drift" data-pad="drift">Drift</button>
-                <button type="button" class="pad-btn brake" data-pad="brake">Freio</button>
-                <button type="button" class="pad-btn accel" data-pad="throttle">Acelera</button>
-              </div>
-            </div>`
-          : ""
-      }
+      <div class="touch" id="touch">
+        <div class="zone stick-wrap" aria-label="Direção"><div class="stick-base"></div><div class="stick-knob"></div></div>
+        <div class="zone pad-right">
+          <button type="button" class="pad-btn item" data-pad="item">Item</button>
+          <button type="button" class="pad-btn drift" data-pad="drift">Drift</button>
+          <button type="button" class="pad-btn brake" data-pad="brake">Freio</button>
+          <button type="button" class="pad-btn accel" data-pad="throttle">Acelera</button>
+        </div>
+      </div>
     `);
     const c = this.root.querySelector("#minimap") as HTMLCanvasElement | null;
     this.minimap = c?.getContext("2d") ?? null;
@@ -258,7 +250,7 @@ export class UI {
     if (lap) lap.textContent = `${Math.min(data.laps, data.lap + 1)}/${data.laps}`;
     if (spd) spd.textContent = String(Math.max(0, Math.round(data.speed * 4.6)));
     if (item) {
-      item.textContent = data.item ? ITEM_LABEL[data.item] : "vazio";
+      item.textContent = data.item ? ITEM_LABEL[data.item] : "VAZIO";
       item.classList.toggle("armed", !!data.item);
     }
     this.root.querySelector("#soot-veil")?.classList.toggle("hidden", !data.smoke);
@@ -340,7 +332,8 @@ export class UI {
         <div class="eyebrow">Prova interrompida</div>
         <h2>Pausa</h2>
         <div class="sheet" style="margin-top:10px">
-          <p><b>↑ W</b> acelera · <b>↓ S</b> freia · <b>A D</b> dirige · <b>Shift</b> drift · <b>E</b> item</p>
+          <p><b>Celular:</b> esquerda = direção. Direita = Acelera, Freio, Drift e Item.</p>
+          <p><b>Teclado:</b> W acelera · S freia · A D dirige · Shift drift · E item.</p>
         </div>
         <div class="stack">
           <button type="button" class="btn primary" data-act="resume">Continuar</button>

@@ -1,113 +1,46 @@
 import * as THREE from "three";
 import type { KartDef } from "../types";
 
-function mat(color: string, extra: THREE.MeshStandardMaterialParameters = {}): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, roughness: 0.42, metalness: 0.18, ...extra });
+function paintMat(color: string, glow = 0.2): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({
+    color,
+    roughness: 0.34,
+    metalness: 0.2,
+    emissive: new THREE.Color(color).multiplyScalar(glow),
+    emissiveIntensity: 0.9,
+  });
 }
 
 function wheel(wide: number, radius: number): THREE.Group {
   const g = new THREE.Group();
   const tire = new THREE.Mesh(
-    new THREE.CylinderGeometry(radius, radius, wide, 14),
-    new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.9 }),
+    new THREE.CylinderGeometry(radius, radius, wide, 18),
+    new THREE.MeshStandardMaterial({ color: 0x0c0c0e, roughness: 0.92, metalness: 0.05 }),
   );
   tire.rotation.z = Math.PI / 2;
   const rim = new THREE.Mesh(
-    new THREE.CylinderGeometry(radius * 0.58, radius * 0.58, wide + 0.04, 10),
-    new THREE.MeshStandardMaterial({ color: 0xc5ccd3, metalness: 0.7, roughness: 0.25 }),
+    new THREE.CylinderGeometry(radius * 0.62, radius * 0.62, wide + 0.05, 12),
+    new THREE.MeshStandardMaterial({ color: 0xd8dee6, metalness: 0.78, roughness: 0.22 }),
   );
   rim.rotation.z = Math.PI / 2;
   const hub = new THREE.Mesh(
-    new THREE.CylinderGeometry(radius * 0.22, radius * 0.22, wide + 0.08, 8),
-    new THREE.MeshStandardMaterial({ color: 0x22262c, metalness: 0.5, roughness: 0.35 }),
+    new THREE.CylinderGeometry(radius * 0.22, radius * 0.22, wide + 0.1, 8),
+    new THREE.MeshStandardMaterial({ color: 0x2a2e34, metalness: 0.55, roughness: 0.3 }),
   );
   hub.rotation.z = Math.PI / 2;
   g.add(tire, rim, hub);
+  g.traverse((o) => {
+    if (o instanceof THREE.Mesh) o.castShadow = true;
+  });
   return g;
 }
 
-export function createKartMesh(def: KartDef): THREE.Group {
-  const root = new THREE.Group();
-  const paint = mat(def.paint);
-  const accent = mat(def.accent, { metalness: 0.35, roughness: 0.3 });
-  const dark = mat(def.cabin, { roughness: 0.55 });
-  const glass = mat("#8fd4e8", { transparent: true, opacity: 0.35, metalness: 0.6, roughness: 0.1 });
-
-  const chassis = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.28, 2.05), paint);
-  chassis.position.y = 0.38;
-  chassis.castShadow = true;
-  root.add(chassis);
-
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(1.28, 0.08, 2.2), dark);
-  floor.position.y = 0.24;
-  root.add(floor);
-
-  if (def.id === "vespa") {
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.32, 1.15, 6), paint);
-    nose.rotation.x = Math.PI / 2;
-    nose.position.set(0, 0.42, 1.35);
-    const wing = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.08, 0.32), accent);
-    wing.position.set(0, 0.92, -0.92);
-    const mast = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.55, 0.08), dark);
-    mast.position.set(0, 0.7, -0.85);
-    const side = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.16, 0.7), accent);
-    side.position.set(0, 0.34, 0.1);
-    root.add(nose, wing, mast, side);
-  } else if (def.id === "cometa") {
-    const nose = new THREE.Mesh(new THREE.SphereGeometry(0.46, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2), paint);
-    nose.scale.set(1, 0.55, 1.35);
-    nose.position.set(0, 0.42, 0.85);
-    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 2.1), accent);
-    stripe.position.set(0, 0.54, 0.05);
-    const wing = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.07, 0.28), dark);
-    wing.position.set(0, 0.72, -0.95);
-    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.7, 8), mat("#c5ccd3", { metalness: 0.8 }));
-    pipe.rotation.x = Math.PI / 2;
-    pipe.position.set(0.42, 0.32, -1.05);
-    root.add(nose, stripe, wing, pipe);
-  } else if (def.id === "guardiao") {
-    chassis.scale.set(1.22, 1.15, 1.05);
-    const armor = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.35, 1.7), paint);
-    armor.position.set(0, 0.52, 0.05);
-    const bull = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.18, 0.28), accent);
-    bull.position.set(0, 0.4, 1.2);
-    const cage = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.05, 6, 10, Math.PI), dark);
-    cage.rotation.x = Math.PI / 2;
-    cage.position.set(0, 0.85, -0.15);
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.08, 0.7), dark);
-    roof.position.set(0, 1.05, -0.1);
-    root.add(armor, bull, cage, roof);
-  } else {
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.22, 2.45), paint);
-    body.position.set(0, 0.34, 0.05);
-    const wedge = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.16, 0.9), paint);
-    wedge.position.set(0, 0.4, 0.85);
-    wedge.rotation.x = 0.25;
-    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, 2.4), accent);
-    stripe.position.set(0.28, 0.48, 0);
-    const stripe2 = stripe.clone();
-    stripe2.position.x = -0.28;
-    const diffuser = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.1, 0.4), dark);
-    diffuser.position.set(0, 0.22, -1.2);
-    root.add(body, wedge, stripe, stripe2, diffuser);
-  }
-
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.28, 0.42), dark);
-  seat.position.set(0, 0.58, -0.15);
-  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), accent);
-  helmet.position.set(0, 0.86, -0.08);
-  const visor = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8, 0, Math.PI), glass);
-  visor.position.set(0, 0.86, 0.02);
-  visor.rotation.y = Math.PI;
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.28, 0.28), dark);
-  torso.position.set(0, 0.7, -0.1);
-  root.add(seat, helmet, visor, torso);
-
-  const wr = def.id === "guardiao" ? 0.34 : 0.3;
-  const ww = def.id === "guardiao" ? 0.28 : 0.22;
-  const spreadX = def.id === "guardiao" ? 0.72 : 0.62;
-  const frontZ = def.id === "ziper" ? 0.95 : 0.82;
-  const rearZ = def.id === "ziper" ? -0.95 : -0.82;
+function addWheels(root: THREE.Group, wideKart: boolean): void {
+  const wr = wideKart ? 0.38 : 0.35;
+  const ww = wideKart ? 0.3 : 0.24;
+  const spreadX = wideKart ? 0.72 : 0.62;
+  const frontZ = 0.82;
+  const rearZ = -0.82;
   for (const [x, z] of [
     [-spreadX, frontZ],
     [spreadX, frontZ],
@@ -119,24 +52,114 @@ export function createKartMesh(def: KartDef): THREE.Group {
     w.name = z > 0 ? "wheelF" : "wheelR";
     root.add(w);
   }
+}
 
-  const glowBar = new THREE.Mesh(
-    new THREE.BoxGeometry(0.7, 0.08, 0.08),
-    new THREE.MeshBasicMaterial({ color: def.accent }),
+/**
+ * Compact kart: chassis + cabin + 4 wheels. No thin blades, masts, or
+ * yellow-sphere heads — those read as spikes / programmer art on phone.
+ */
+export function createKartMesh(def: KartDef): THREE.Group {
+  const root = new THREE.Group();
+  root.frustumCulled = false;
+  const paint = paintMat(def.paint, 0.18);
+  const accent = paintMat(def.accent, 0.12);
+  const dark = new THREE.MeshStandardMaterial({
+    color: def.cabin,
+    roughness: 0.55,
+    metalness: 0.12,
+    emissive: 0x000000,
+  });
+  const glass = new THREE.MeshStandardMaterial({
+    color: "#3a6a7c",
+    transparent: true,
+    opacity: 0.55,
+    metalness: 0.65,
+    roughness: 0.12,
+  });
+
+  const wide = def.id === "guardiao";
+  const slim = def.id === "vespa";
+  const bodyW = wide ? 1.22 : slim ? 0.82 : 1.02;
+  const bodyL = slim ? 1.72 : 1.88;
+
+  const pan = new THREE.Mesh(new THREE.BoxGeometry(bodyW * 0.92, 0.08, bodyL * 0.92), dark);
+  pan.position.y = 0.22;
+  const chassis = new THREE.Mesh(new THREE.BoxGeometry(bodyW, 0.28, bodyL), paint);
+  chassis.position.y = 0.4;
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(bodyW * 0.78, 0.2, 0.52), paint);
+  nose.position.set(0, 0.38, bodyL * 0.48);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(bodyW * 0.78, 0.16, 0.32), paint);
+  tail.position.set(0, 0.36, -bodyL * 0.42);
+  root.add(pan, chassis, nose, tail);
+
+  if (def.id === "vespa") {
+    const bumper = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.12), accent);
+    bumper.position.set(0, 0.34, 1.08);
+    const cowling = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.16, 0.7), paint);
+    cowling.position.set(0, 0.52, 0.28);
+    root.add(bumper, cowling);
+  } else if (def.id === "cometa") {
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.04, 1.7), accent);
+    stripe.position.set(0, 0.55, 0.06);
+    const hood = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.14, 0.9), paint);
+    hood.position.set(0, 0.5, 0.42);
+    root.add(stripe, hood);
+  } else if (def.id === "guardiao") {
+    const armor = new THREE.Mesh(new THREE.BoxGeometry(1.28, 0.22, 1.35), paint);
+    armor.position.set(0, 0.52, 0.04);
+    const bull = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.14, 0.18), accent);
+    bull.position.set(0, 0.36, 1.12);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.08, 0.58), dark);
+    roof.position.set(0, 0.92, -0.08);
+    root.add(armor, bull, roof);
+  } else {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.16, 1.95), paint);
+    body.position.set(0, 0.36, 0.02);
+    const s1 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 1.6), accent);
+    s1.position.set(0.22, 0.48, 0);
+    const s2 = s1.clone();
+    s2.position.x = -0.22;
+    root.add(body, s1, s2);
+  }
+
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(slim ? 0.58 : wide ? 0.98 : 0.82, 0.06, 0.18), dark);
+  wing.position.set(0, slim ? 0.58 : 0.64, slim ? -0.72 : -0.88);
+  root.add(wing);
+
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.2, 0.36), dark);
+  seat.position.set(0, 0.56, -0.16);
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.28, 0.24), dark);
+  torso.position.set(0, 0.72, -0.1);
+  const helmet = new THREE.Mesh(
+    new THREE.SphereGeometry(0.14, 14, 12),
+    new THREE.MeshStandardMaterial({ color: 0x12161c, roughness: 0.28, metalness: 0.35, emissive: 0x000000 }),
   );
-  glowBar.position.set(0, 0.42, -1.08);
-  root.add(glowBar);
-  const glow = new THREE.Mesh(
-    new THREE.SphereGeometry(0.1, 6, 6),
-    new THREE.MeshBasicMaterial({ color: def.accent }),
-  );
-  glow.position.set(-0.32, 0.38, -1.05);
-  const glow2 = glow.clone();
-  glow2.position.x = 0.32;
-  root.add(glow, glow2);
+  helmet.position.set(0, 0.9, -0.04);
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.07, 0.08), glass);
+  visor.position.set(0, 0.9, 0.08);
+  root.add(seat, torso, helmet, visor);
+
+  addWheels(root, wide);
+
+  const lampMat = new THREE.MeshBasicMaterial({ color: 0xfff3c8 });
+  const l1 = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.06), lampMat);
+  l1.position.set(-0.24, 0.38, bodyL * 0.58 + 0.12);
+  const l2 = l1.clone();
+  l2.position.x = 0.24;
+  root.add(l1, l2);
+
+  const tailMat = new THREE.MeshBasicMaterial({ color: 0xff3b2e });
+  const t1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.08, 0.06), tailMat);
+  t1.position.set(-0.28, 0.4, -bodyL * 0.52 - 0.08);
+  const t2 = t1.clone();
+  t2.position.x = 0.28;
+  root.add(t1, t2);
 
   root.traverse((o) => {
-    if (o instanceof THREE.Mesh) o.castShadow = true;
+    if (o instanceof THREE.Mesh) {
+      o.castShadow = true;
+      o.frustumCulled = false;
+    }
   });
   return root;
 }
