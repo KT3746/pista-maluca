@@ -155,18 +155,9 @@ export function createKartMesh(def: KartDef): THREE.Group {
   t2.position.x = 0.28;
   root.add(t1, t2);
 
-  const shadow = new THREE.Mesh(
-    new THREE.CircleGeometry(0.9, 16),
-    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.38, depthWrite: false }),
-  );
-  shadow.rotation.x = -Math.PI / 2;
-  shadow.position.y = 0.03;
-  shadow.name = "blobShadow";
-  root.add(shadow);
-
   root.traverse((o) => {
     if (o instanceof THREE.Mesh) {
-      o.castShadow = o.name !== "blobShadow";
+      o.castShadow = true;
       o.frustumCulled = false;
     }
   });
