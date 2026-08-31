@@ -1,0 +1,21 @@
+{
+  "name": "pista-maluca",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Pista Maluca — corrida de kart original no navegador",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host --port 4173",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7"
+  }
+}
