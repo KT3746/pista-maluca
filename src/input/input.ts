@@ -84,9 +84,11 @@ export class Input {
       btn?.classList.toggle("active", on);
     };
 
-    const onWindowUp = (e: PointerEvent) => {
-      const name = this.padPointers.get(e.pointerId);
-      this.padPointers.delete(e.pointerId);
+    const onWindowUp = (e: Event) => {
+      const pid = "pointerId" in e ? (e as PointerEvent).pointerId : -1;
+      const name = this.padPointers.get(pid) ?? this.padPointers.get(-1);
+      this.padPointers.delete(pid);
+      this.padPointers.delete(-1);
       if (name) {
         let still = false;
         for (const v of this.padPointers.values()) if (v === name) still = true;
@@ -95,17 +97,18 @@ export class Input {
           this.boundLayer?.querySelector(`[data-pad="${name}"]`)?.classList.remove("active");
         }
       }
-      if (this.steerPointer === e.pointerId) {
+      if (this.steerPointer === pid) {
         this.steerPointer = null;
         this.steerTouch = 0;
-        const knob = this.boundLayer?.querySelector(".stick-knob") as HTMLElement | null;
-        if (knob) knob.style.transform = "translate(0,0)";
+        const knobEl = this.boundLayer?.querySelector(".stick-knob") as HTMLElement | null;
+        if (knobEl) knobEl.style.transform = "translate(0,0)";
       }
     };
     if (!this.windowPadBound) {
       this.windowPadBound = true;
       window.addEventListener("pointerup", onWindowUp, true);
       window.addEventListener("pointercancel", onWindowUp, true);
+      window.addEventListener("mouseup", onWindowUp, true);
     }
 
     if (stick && knob) {
@@ -134,18 +137,32 @@ export class Input {
     layer.querySelectorAll("[data-pad]").forEach((node) => {
       const el = node as HTMLElement;
       const name = el.getAttribute("data-pad") as keyof typeof this.pad;
-      el.addEventListener("pointerdown", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.padPointers.set(e.pointerId, name);
-        setPad(name, true);
-        if (name === "item") this.itemPressed = true;
-        try {
-          el.setPointerCapture(e.pointerId);
-        } catch {
-          /* optional */
-        }
-      });
+      el.addEventListener(
+        "pointerdown",
+        (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.padPointers.set(e.pointerId, name);
+          setPad(name, true);
+          if (name === "item") this.itemPressed = true;
+          try {
+            el.setPointerCapture(e.pointerId);
+          } catch {
+            /* optional */
+          }
+        },
+        { capture: true },
+      );
+      el.addEventListener(
+        "mousedown",
+        (e) => {
+          e.preventDefault();
+          this.padPointers.set(-1, name);
+          setPad(name, true);
+          if (name === "item") this.itemPressed = true;
+        },
+        { capture: true },
+      );
       el.addEventListener("contextmenu", (ev) => ev.preventDefault());
     });
   }

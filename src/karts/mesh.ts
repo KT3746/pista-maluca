@@ -128,12 +128,12 @@ export function createKartMesh(def: KartDef): THREE.Group {
   const torso = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.26, 0.26), dark);
   torso.position.set(0, 0.68, -0.12);
   const helmet = new THREE.Mesh(
-    new THREE.SphereGeometry(0.16, 12, 10),
-    new THREE.MeshStandardMaterial({ color: 0x15181e, roughness: 0.35, metalness: 0.25 }),
+    new THREE.SphereGeometry(0.13, 12, 10),
+    new THREE.MeshStandardMaterial({ color: 0x101318, roughness: 0.32, metalness: 0.28 }),
   );
-  helmet.position.set(0, 0.88, -0.08);
-  const visor = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8, 0, Math.PI), glass);
-  visor.position.set(0, 0.88, 0.02);
+  helmet.position.set(0, 0.82, -0.06);
+  const visor = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8, 0, Math.PI), glass);
+  visor.position.set(0, 0.82, 0.03);
   visor.rotation.y = Math.PI;
   root.add(seat, torso, helmet, visor);
 
@@ -163,7 +163,7 @@ export function createKartMesh(def: KartDef): THREE.Group {
   l2.position.x = 0.28;
   root.add(l1, l2);
 
-  const tailMat = new THREE.MeshBasicMaterial({ color: def.accent });
+  const tailMat = new THREE.MeshBasicMaterial({ color: 0xff3b2e });
   const t1 = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 0.06), tailMat);
   t1.position.set(-0.32, 0.4, -1.28);
   const t2 = t1.clone();

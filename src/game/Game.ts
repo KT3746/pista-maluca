@@ -35,6 +35,7 @@ export class Game {
       antialias: !isMobileViewport(),
       powerPreference: "high-performance",
       alpha: false,
+      logarithmicDepthBuffer: true,
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileViewport() ? 1.25 : 1.75));
     this.renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -127,7 +128,7 @@ export class Game {
 
   private syncChrome(): void {
     const racing = this.view === "race";
-    const touch = wantsTouchControls();
+    const touch = window.innerWidth < 820 || wantsTouchControls();
     document.body.classList.toggle("is-race", racing);
     document.body.classList.toggle("touch-on", touch);
     document.body.classList.toggle("is-garage", this.view === "karts");
@@ -260,7 +261,7 @@ export class Game {
     this.renderer.setScissorTest(false);
     this.renderer.setViewport(0, 0, w, h);
     this.camera.clearViewOffset();
-    this.camera.near = 1.35;
+    this.camera.near = 0.85;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.race?.dispose();

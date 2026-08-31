@@ -3,48 +3,21 @@ import { damp } from "../config";
 import type { KartBody } from "../physics/kart";
 import type { BuiltTrack } from "../tracks/types";
 
-const BACK = new THREE.Vector3();
-const FWD = new THREE.Vector3();
-const LOOK = new THREE.Vector3();
-const RIBBON = new THREE.Vector3();
-
-function ribbonLook(track: BuiltTrack, kart: KartBody, meters: number): THREE.Vector3 {
-  const main = track.samples;
-  let idx = Math.max(0, Math.min(kart.sampleIndex, main.length - 1));
-  let acc = 0;
-  for (let n = 0; n < main.length; n++) {
-    const a = main[idx];
-    const b = main[(idx + 1) % main.length];
-    acc += a.position.distanceTo(b.position);
-    if (acc >= meters && !a.shortcut) {
-      RIBBON.copy(a.position);
-      RIBBON.y += 1.35;
-      return RIBBON;
-    }
-    idx = (idx + 1) % main.length;
-  }
-  RIBBON.copy(kart.position);
-  RIBBON.x += Math.sin(kart.heading) * meters;
-  RIBBON.z += Math.cos(kart.heading) * meters;
-  RIBBON.y += 1.35;
-  return RIBBON;
-}
-
+/**
+ * Third-person chase: sit behind and a little above the kart, look down the
+ * ribbon — never parked on the roof looking into the asphalt.
+ */
 export class ChaseCamera {
   private look = new THREE.Vector3();
   private desired = new THREE.Vector3();
-  private shakeVec = new THREE.Vector3();
-  fov = 46;
-  private ready = false;
+  fov = 48;
   private snapTime = 0;
 
-  attach(camera: THREE.PerspectiveCamera, kart: KartBody, track: BuiltTrack | null = null): void {
-    this.ready = false;
-    this.snapTime = 1.25;
-    camera.near = 1.35;
-    camera.far = 780;
-    this.place(camera, kart, track, true, 1 / 60);
-    this.ready = true;
+  attach(camera: THREE.PerspectiveCamera, kart: KartBody, _track: BuiltTrack | null = null): void {
+    this.snapTime = 2.2;
+    camera.near = 0.85;
+    camera.far = 800;
+    this.place(camera, kart, true, 1 / 60);
   }
 
   update(
@@ -52,68 +25,57 @@ export class ChaseCamera {
     kart: KartBody,
     dt: number,
     paused: boolean,
-    track: BuiltTrack | null = null,
+    _track: BuiltTrack | null = null,
   ): void {
-    this.place(camera, kart, track, paused, dt);
+    this.place(camera, kart, paused, dt);
   }
 
-  private place(
-    camera: THREE.PerspectiveCamera,
-    kart: KartBody,
-    track: BuiltTrack | null,
-    paused: boolean,
-    dt: number,
-  ): void {
-    const portrait = camera.aspect < 0.78;
-    const boost = kart.boostTime > 0 ? 1 : 0;
+  private place(camera: THREE.PerspectiveCamera, kart: KartBody, paused: boolean, dt: number): void {
+    const phone = typeof window !== "undefined" && window.innerWidth < 820;
     const speed = Math.abs(kart.speed);
-    const backDist = (portrait ? 18.5 : 13.2) + speed * 0.12 - boost * 0.4;
-    const height = (portrait ? 5.4 : 4.2) + speed * 0.018;
-    BACK.set(-Math.sin(kart.heading), 0, -Math.cos(kart.heading));
-    FWD.set(Math.sin(kart.heading), 0, Math.cos(kart.heading));
-    const right = new THREE.Vector3().crossVectors(FWD, new THREE.Vector3(0, 1, 0)).normalize();
+    const boost = kart.boostTime > 0 ? 1 : 0;
+    const back = (phone ? 14.5 : 11.5) + speed * 0.1;
+    const height = (phone ? 3.85 : 3.35) + speed * 0.012;
+    const ahead = (phone ? 22 : 16) + speed * 0.16;
+    const sin = Math.sin(kart.heading);
+    const cos = Math.cos(kart.heading);
 
-    this.desired.copy(kart.position).addScaledVector(BACK, backDist).addScaledVector(right, portrait ? 0.35 : 0.55);
-    this.desired.y = kart.position.y + height;
+    this.desired.set(
+      kart.position.x - sin * back,
+      kart.position.y + height,
+      kart.position.z - cos * back,
+    );
+    const lookTarget = new THREE.Vector3(
+      kart.position.x + sin * ahead,
+      kart.position.y + 1.15,
+      kart.position.z + cos * ahead,
+    );
 
-    const snap = paused || !this.ready || this.snapTime > 0;
+    const snap = paused || this.snapTime > 0;
     if (this.snapTime > 0) this.snapTime = Math.max(0, this.snapTime - dt);
-    if (snap) camera.position.copy(this.desired);
-    else {
-      camera.position.x = damp(camera.position.x, this.desired.x, 5.4, dt);
-      camera.position.y = damp(camera.position.y, this.desired.y, 4.8, dt);
-      camera.position.z = damp(camera.position.z, this.desired.z, 5.4, dt);
+
+    if (snap) {
+      camera.position.copy(this.desired);
+      this.look.copy(lookTarget);
+    } else {
+      camera.position.x = damp(camera.position.x, this.desired.x, 5.8, dt);
+      camera.position.y = damp(camera.position.y, this.desired.y, 5.2, dt);
+      camera.position.z = damp(camera.position.z, this.desired.z, 5.8, dt);
+      this.look.x = damp(this.look.x, lookTarget.x, 6.4, dt);
+      this.look.y = damp(this.look.y, lookTarget.y, 6.4, dt);
+      this.look.z = damp(this.look.z, lookTarget.z, 6.4, dt);
     }
 
-    const lookMeters = (portrait ? 28 : 18) + speed * 0.2;
-    LOOK.copy(kart.position).addScaledVector(FWD, lookMeters);
-    LOOK.y = kart.position.y + (portrait ? 2.15 : 1.55);
-    if (track) LOOK.lerp(ribbonLook(track, kart, lookMeters), 0.5);
-
-    if (snap) this.look.copy(LOOK);
-    else {
-      this.look.x = damp(this.look.x, LOOK.x, 6.2, dt);
-      this.look.y = damp(this.look.y, LOOK.y, 6.2, dt);
-      this.look.z = damp(this.look.z, LOOK.z, 6.2, dt);
+    if (camera.position.distanceTo(kart.position) < (phone ? 11 : 8.5)) {
+      camera.position.copy(this.desired);
     }
-
-    if (kart.shake > 0) {
-      this.shakeVec.set((Math.random() - 0.5) * kart.shake * 0.16, (Math.random() - 0.5) * kart.shake * 0.1, 0);
-      camera.position.add(this.shakeVec);
-    }
-
-    const dist = camera.position.distanceTo(kart.position);
-    const minDist = portrait ? 14.5 : 10.5;
-    if (dist < minDist) camera.position.copy(this.desired);
 
     camera.up.set(0, 1, 0);
     camera.lookAt(this.look);
-
-    const baseFov = portrait ? 40 : 50;
-    const wantFov = baseFov + speed * 0.28 + boost * 7;
-    this.fov = snap ? wantFov : damp(this.fov, wantFov, 3.8, dt);
+    const wantFov = (phone ? 46 : 52) + speed * 0.26 + boost * 6;
+    this.fov = snap ? wantFov : damp(this.fov, wantFov, 3.6, dt);
     camera.fov = this.fov;
-    camera.near = 1.35;
+    camera.near = 0.85;
     camera.updateProjectionMatrix();
   }
 }

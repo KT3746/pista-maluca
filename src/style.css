@@ -670,6 +670,13 @@ body.touch-on .touch {
   display: block;
 }
 
+/* Phone viewport: pads stay up even if JS detection (maxTouchPoints / hover) lies. */
+@media (max-width: 819px) {
+  body.is-race .touch {
+    display: block !important;
+  }
+}
+
 .touch .zone {
   position: absolute;
   pointer-events: auto !important;
