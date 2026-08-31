@@ -268,7 +268,8 @@ export function makeLights(track: BuiltTrack, _mobile: boolean): THREE.Group {
   fill.position.set(-pal.sunDir[0] * 20, 18, -pal.sunDir[2] * 20);
   const rim = new THREE.DirectionalLight(0xffc56a, 0.35);
   rim.position.set(8, 6, -16);
-  g.add(hemi, dir, fill, rim);
+  const ambient = new THREE.AmbientLight(0x4a5a72, 0.7);
+  g.add(hemi, dir, fill, rim, ambient);
   return g;
 }
 

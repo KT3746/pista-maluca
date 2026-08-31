@@ -733,6 +733,8 @@ body.touch-on .touch {
   bottom: 0;
   width: 148px;
   height: 148px;
+  min-width: 148px;
+  min-height: 148px;
   font-size: 20px;
 }
 

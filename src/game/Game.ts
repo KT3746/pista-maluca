@@ -255,8 +255,14 @@ export class Game {
   }
 
   private bootRace(): void {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    this.renderer.setScissorTest(false);
+    this.renderer.setViewport(0, 0, w, h);
     this.camera.clearViewOffset();
-    this.camera.near = 1.15;
+    this.camera.near = 1.35;
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
     this.race?.dispose();
     const params = new URLSearchParams(location.search);
     const lapsRaw = Number(params.get("laps"));
@@ -364,34 +370,63 @@ export class Game {
         this.audio.engine(rpm, this.input.state.throttle, p.kart.boostTime > 0);
         this.audio.drift(p.kart.drifting ? 0.7 + p.kart.driftCharge * 0.3 : 0);
       }
+      this.renderer.setScissorTest(false);
+      this.renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
       this.renderer.render(this.race.scene, this.camera);
       return;
     }
 
     if (this.menuKart) this.menuKart.rotation.y += dt * 0.45;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
     if (this.view === "karts") {
-      const portrait = window.innerWidth < 820;
-      if (portrait) {
-        this.camera.clearViewOffset();
-        this.camera.position.set(0.15, 1.55, 5.35);
-        this.camera.lookAt(0, -1.65, 0);
-      } else {
-        this.camera.clearViewOffset();
-        this.camera.position.set(-0.2, 1.5, 5.1);
-        this.camera.lookAt(1.4, 0.4, 0);
-      }
-      this.camera.near = 0.35;
-      this.camera.fov = 42;
-      this.camera.updateProjectionMatrix();
-    } else {
+      const previewH = Math.max(220, Math.floor(h * 0.48));
       this.camera.clearViewOffset();
-      this.camera.position.x = 4.2 + Math.sin(performance.now() * 0.00025) * 0.4;
-      this.camera.position.y = 2.4;
-      this.camera.position.z = 5.6;
-      this.camera.lookAt(0, 0.6, 0);
+      this.camera.near = 0.25;
+      this.camera.far = 80;
+      this.camera.fov = 38;
+      this.camera.aspect = w / previewH;
+      if (w < 820) {
+        this.camera.position.set(3.15, 1.55, 4.55);
+        this.camera.lookAt(0, 0.42, 0);
+      } else {
+        this.camera.position.set(3.4, 1.55, 4.7);
+        this.camera.lookAt(0, 0.42, 0);
+        this.camera.aspect = (w * 0.52) / h;
+      }
+      this.camera.updateProjectionMatrix();
+      this.renderer.setClearColor(0x0b1018, 1);
+      this.renderer.setScissorTest(true);
+      if (w < 820) {
+        this.renderer.setViewport(0, h - previewH, w, previewH);
+        this.renderer.setScissor(0, h - previewH, w, previewH);
+      } else {
+        const previewW = Math.floor(w * 0.56);
+        this.renderer.setViewport(w - previewW, 0, previewW, h);
+        this.renderer.setScissor(w - previewW, 0, previewW, h);
+      }
+      this.renderer.render(this.menuScene, this.camera);
+      this.renderer.setScissorTest(false);
+      this.camera.aspect = w / h;
+      this.camera.updateProjectionMatrix();
+      this.audio.engine(0.12, 0.04, false);
+      this.audio.drift(0);
+      return;
     }
+
+    this.camera.clearViewOffset();
+    this.camera.position.x = 4.2 + Math.sin(performance.now() * 0.00025) * 0.4;
+    this.camera.position.y = 2.4;
+    this.camera.position.z = 5.6;
+    this.camera.lookAt(0, 0.6, 0);
+    this.camera.fov = 52;
+    this.camera.near = 0.55;
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
     this.audio.engine(0.12, 0.04, false);
     this.audio.drift(0);
+    this.renderer.setScissorTest(false);
+    this.renderer.setViewport(0, 0, w, h);
     this.renderer.render(this.menuScene, this.camera);
   }
 }

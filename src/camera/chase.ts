@@ -36,10 +36,12 @@ export class ChaseCamera {
   private shakeVec = new THREE.Vector3();
   fov = 46;
   private ready = false;
+  private snapTime = 0;
 
   attach(camera: THREE.PerspectiveCamera, kart: KartBody, track: BuiltTrack | null = null): void {
     this.ready = false;
-    camera.near = 1.15;
+    this.snapTime = 1.25;
+    camera.near = 1.35;
     camera.far = 780;
     this.place(camera, kart, track, true, 1 / 60);
     this.ready = true;
@@ -65,8 +67,8 @@ export class ChaseCamera {
     const portrait = camera.aspect < 0.78;
     const boost = kart.boostTime > 0 ? 1 : 0;
     const speed = Math.abs(kart.speed);
-    const backDist = (portrait ? 16.4 : 11.8) + speed * 0.11 - boost * 0.45;
-    const height = (portrait ? 6.4 : 4.8) + speed * 0.022;
+    const backDist = (portrait ? 18.5 : 13.2) + speed * 0.12 - boost * 0.4;
+    const height = (portrait ? 5.4 : 4.2) + speed * 0.018;
     BACK.set(-Math.sin(kart.heading), 0, -Math.cos(kart.heading));
     FWD.set(Math.sin(kart.heading), 0, Math.cos(kart.heading));
     const right = new THREE.Vector3().crossVectors(FWD, new THREE.Vector3(0, 1, 0)).normalize();
@@ -74,7 +76,8 @@ export class ChaseCamera {
     this.desired.copy(kart.position).addScaledVector(BACK, backDist).addScaledVector(right, portrait ? 0.35 : 0.55);
     this.desired.y = kart.position.y + height;
 
-    const snap = paused || !this.ready;
+    const snap = paused || !this.ready || this.snapTime > 0;
+    if (this.snapTime > 0) this.snapTime = Math.max(0, this.snapTime - dt);
     if (snap) camera.position.copy(this.desired);
     else {
       camera.position.x = damp(camera.position.x, this.desired.x, 5.4, dt);
@@ -82,9 +85,9 @@ export class ChaseCamera {
       camera.position.z = damp(camera.position.z, this.desired.z, 5.4, dt);
     }
 
-    const lookMeters = (portrait ? 24 : 16) + speed * 0.18;
+    const lookMeters = (portrait ? 28 : 18) + speed * 0.2;
     LOOK.copy(kart.position).addScaledVector(FWD, lookMeters);
-    LOOK.y = kart.position.y + (portrait ? 1.7 : 1.35);
+    LOOK.y = kart.position.y + (portrait ? 2.15 : 1.55);
     if (track) LOOK.lerp(ribbonLook(track, kart, lookMeters), 0.5);
 
     if (snap) this.look.copy(LOOK);
@@ -100,7 +103,7 @@ export class ChaseCamera {
     }
 
     const dist = camera.position.distanceTo(kart.position);
-    const minDist = portrait ? 12.5 : 9.2;
+    const minDist = portrait ? 14.5 : 10.5;
     if (dist < minDist) camera.position.copy(this.desired);
 
     camera.up.set(0, 1, 0);
@@ -110,7 +113,7 @@ export class ChaseCamera {
     const wantFov = baseFov + speed * 0.28 + boost * 7;
     this.fov = snap ? wantFov : damp(this.fov, wantFov, 3.8, dt);
     camera.fov = this.fov;
-    camera.near = 1.15;
+    camera.near = 1.35;
     camera.updateProjectionMatrix();
   }
 }

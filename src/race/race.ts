@@ -194,7 +194,7 @@ export class Race {
     this.items.update(dt, this.racers, this.built, (r, kind) => {
       if (kind === "puck" || kind === "soap") this.onCue("hit");
       if (kind === "hook" && r.isPlayer) this.onCue("item");
-    });
+    }, camera);
 
     for (const r of this.racers) {
       const meshMod = r.mesh as THREE.Group & { lastLap?: number };

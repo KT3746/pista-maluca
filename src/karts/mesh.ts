@@ -137,9 +137,9 @@ export function createKartMesh(def: KartDef): THREE.Group {
   visor.rotation.y = Math.PI;
   root.add(seat, torso, helmet, visor);
 
-  const wr = def.id === "guardiao" ? 0.36 : 0.33;
-  const ww = def.id === "guardiao" ? 0.3 : 0.24;
-  const spreadX = def.id === "guardiao" ? 0.74 : 0.64;
+  const wr = def.id === "guardiao" ? 0.38 : 0.36;
+  const ww = def.id === "guardiao" ? 0.32 : 0.26;
+  const spreadX = def.id === "guardiao" ? 0.76 : 0.66;
   const frontZ = 0.86;
   const rearZ = -0.86;
   for (const [x, z] of [

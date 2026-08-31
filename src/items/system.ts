@@ -43,11 +43,11 @@ export class ItemSystem {
 
   setup(track: BuiltTrack): void {
     this.clear();
-    const geo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
+    const geo = new THREE.BoxGeometry(0.42, 0.42, 0.42);
     const mat = new THREE.MeshStandardMaterial({
       color: 0xffe08a,
       emissive: 0xd4a017,
-      emissiveIntensity: 1.1,
+      emissiveIntensity: 0.85,
       metalness: 0.35,
       roughness: 0.28,
     });
@@ -55,12 +55,6 @@ export class ItemSystem {
       const mesh = new THREE.Mesh(geo, mat.clone());
       mesh.position.copy(pos);
       mesh.frustumCulled = false;
-      const halo = new THREE.Mesh(
-        new THREE.TorusGeometry(0.48, 0.045, 6, 12),
-        new THREE.MeshBasicMaterial({ color: 0xffd24a }),
-      );
-      halo.rotation.x = Math.PI / 2;
-      mesh.add(halo);
       this.group.add(mesh);
       this.boxes.push({ mesh, alive: true, respawn: 0, pos: pos.clone() });
     }
@@ -148,7 +142,7 @@ export class ItemSystem {
     void racers;
   }
 
-  update(dt: number, racers: Racer[], track: BuiltTrack, onHit: (r: Racer, kind: ItemId) => void): void {
+  update(dt: number, racers: Racer[], track: BuiltTrack, onHit: (r: Racer, kind: ItemId) => void, camera?: THREE.Camera): void {
     this.clock += dt;
     for (const box of this.boxes) {
       if (!box.alive) {
@@ -162,6 +156,10 @@ export class ItemSystem {
       }
       box.mesh.rotation.y += dt * 2.2;
       box.mesh.position.y = box.pos.y + Math.sin(this.clock * 3 + box.pos.x) * 0.12;
+      if (camera) {
+        const dCam = camera.position.distanceTo(box.mesh.position);
+        box.mesh.visible = dCam > 5.5;
+      }
       for (const r of racers) {
         if (r.item || r.kart.finished) continue;
         if (r.kart.position.distanceTo(box.mesh.position) < 2.3 + (r.kart.magnetTime > 0 ? 3.5 : 0)) {
