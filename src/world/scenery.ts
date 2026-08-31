@@ -1,13 +1,14 @@
 import * as THREE from "three";
 import type { BuiltTrack } from "../tracks/types";
 import { queryTrack } from "../tracks/builder";
-import { makeSkyTexture } from "./textures";
+import { makeNightEnv, makeSkyTexture } from "./textures";
 
 function instanceOf(geo: THREE.BufferGeometry, mat: THREE.Material, transforms: THREE.Matrix4[]): THREE.InstancedMesh {
   const mesh = new THREE.InstancedMesh(geo, mat, transforms.length);
   transforms.forEach((m, i) => mesh.setMatrixAt(i, m));
   mesh.instanceMatrix.needsUpdate = true;
   mesh.frustumCulled = false;
+  mesh.castShadow = true;
   return mesh;
 }
 
@@ -56,8 +57,9 @@ export function decorateTrack(track: BuiltTrack, mobile: boolean): THREE.Group {
   const ground = new THREE.Mesh(
     new THREE.CircleGeometry(260, 40),
     new THREE.MeshStandardMaterial({
-      color: track.def.mood === "coast" ? 0x0c1a28 : track.def.mood === "neon" ? 0x120814 : 0x2a2e28,
-      roughness: 1,
+      color: track.def.mood === "coast" ? 0x1a3348 : track.def.mood === "neon" ? 0x221428 : 0x3a4038,
+      roughness: 0.92,
+      metalness: 0.04,
     }),
   );
   ground.rotation.x = -Math.PI / 2;
@@ -75,11 +77,12 @@ function decorateCoast(root: THREE.Group, track: BuiltTrack, mobile: boolean): v
   const water = new THREE.Mesh(
     new THREE.PlaneGeometry(420, 220, 1, 1),
     new THREE.MeshStandardMaterial({
-      color: 0x12304a,
-      metalness: 0.55,
-      roughness: 0.28,
+      color: 0x1a4a6e,
+      metalness: 0.72,
+      roughness: 0.18,
+      envMapIntensity: 1.1,
       transparent: true,
-      opacity: 0.92,
+      opacity: 0.94,
     }),
   );
   water.rotation.x = -Math.PI / 2;
@@ -103,45 +106,49 @@ function decorateCoast(root: THREE.Group, track: BuiltTrack, mobile: boolean): v
   tower.position.y = cape.position.y;
   root.add(tower);
 
-  const light = new THREE.PointLight(0xffc56a, 18, 48, 2);
+  const light = new THREE.PointLight(0xffc56a, 22, 56, 1.6);
   light.position.copy(tower.position).add(new THREE.Vector3(0, 14.4, 0));
-  if (!mobile) root.add(light);
+  root.add(light);
 
-  const palmTrunk = new THREE.CylinderGeometry(0.12, 0.22, 4.4, 5);
-  const palmFrond = new THREE.ConeGeometry(1.6, 1.4, 5);
-  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a4030, roughness: 1 });
-  const leafMat = new THREE.MeshStandardMaterial({ color: 0x2f5a38, roughness: 0.8 });
-  const trunks = plantAlong(track, mobile ? 18 : 10, 6, 5, 2.2, 2.8);
-  if (trunks.length) {
-    root.add(instanceOf(palmTrunk, trunkMat, trunks));
-    const fronds = trunks.map((m) => {
-      const o = new THREE.Object3D();
-      o.matrix.copy(m);
-      o.position.setFromMatrixPosition(m);
-      o.position.y += 2.4;
-      o.rotation.y = o.position.x;
-      o.updateMatrix();
-      return o.matrix.clone();
-    });
-    root.add(instanceOf(palmFrond, leafMat, fronds));
-  }
-
+  addPalms(root, track, mobile);
   addLamps(root, track, 0xffc56a, mobile);
+}
+
+function addPalms(root: THREE.Group, track: BuiltTrack, mobile: boolean): void {
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6a4a32, roughness: 1 });
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x3d7a44, roughness: 0.72, flatShading: true });
+  const trunks = plantAlong(track, mobile ? 16 : 9, 6.4, 4.2, 2.4, 3.0);
+  if (!trunks.length) return;
+  root.add(instanceOf(new THREE.CylinderGeometry(0.11, 0.2, 4.8, 6), trunkMat, trunks));
+  const dummy = new THREE.Object3D();
+  const frondMats: THREE.Matrix4[] = [];
+  for (const m of trunks) {
+    dummy.matrix.copy(m);
+    dummy.position.setFromMatrixPosition(m);
+    dummy.position.y += 2.55;
+    for (let k = 0; k < 5; k++) {
+      dummy.rotation.set(1.05, (k / 5) * Math.PI * 2 + dummy.position.x * 0.1, 0);
+      dummy.scale.set(1, 1, 1);
+      dummy.updateMatrix();
+      frondMats.push(dummy.matrix.clone());
+    }
+  }
+  root.add(instanceOf(new THREE.ConeGeometry(0.62, 1.65, 5), leafMat, frondMats));
 }
 
 function decorateMountain(root: THREE.Group, track: BuiltTrack, mobile: boolean): void {
   const pine = new THREE.ConeGeometry(1.8, 6.2, 6);
-  const pineMat = new THREE.MeshStandardMaterial({ color: 0x1d3324, roughness: 1 });
+  const pineMat = new THREE.MeshStandardMaterial({ color: 0x2a4a32, roughness: 1 });
   const pines = plantAlong(track, mobile ? 14 : 8, 8, 6, 3.1, 3.2);
   if (pines.length) root.add(instanceOf(pine, pineMat, pines));
 
   const rock = new THREE.DodecahedronGeometry(1.6, 0);
-  const rockMat = new THREE.MeshStandardMaterial({ color: 0x5b5852, roughness: 1 });
+  const rockMat = new THREE.MeshStandardMaterial({ color: 0x6a6760, roughness: 1 });
   const rocks = plantAlong(track, 18, 6.5, 2.2, 0.6, 3.5);
   if (rocks.length) root.add(instanceOf(rock, rockMat, rocks));
 
   const tunnelSamples = track.samples.filter((s) => !s.shortcut && s.progress > 0.48 && s.progress < 0.62);
-  const stone = new THREE.MeshStandardMaterial({ color: 0x5a5e64, roughness: 0.85 });
+  const stone = new THREE.MeshStandardMaterial({ color: 0x6a6e74, roughness: 0.85 });
   for (let i = 0; i < tunnelSamples.length; i += 3) {
     const s = tunnelSamples[i];
     const hw = s.halfWidth + 1.6;
@@ -159,9 +166,9 @@ function decorateMountain(root: THREE.Group, track: BuiltTrack, mobile: boolean)
     lamp.position.y -= 0.45;
     root.add(left, right, lintel, lamp);
   }
-  if (tunnelSamples.length && !mobile) {
+  if (tunnelSamples.length) {
     const mid = tunnelSamples[Math.floor(tunnelSamples.length / 2)];
-    const pl = new THREE.PointLight(0xffe0b0, 16, 22, 2);
+    const pl = new THREE.PointLight(0xffe0b0, 18, 26, 2);
     pl.position.copy(mid.position);
     pl.position.y += 3.2;
     root.add(pl);
@@ -193,7 +200,7 @@ function decorateNeon(root: THREE.Group, track: BuiltTrack, mobile: boolean): vo
   root.add(
     instanceOf(
       new THREE.BoxGeometry(1, 1, 1),
-      new THREE.MeshStandardMaterial({ color: 0x161018, roughness: 0.7, metalness: 0.15 }),
+      new THREE.MeshStandardMaterial({ color: 0x241820, roughness: 0.62, metalness: 0.18, emissive: 0x120814, emissiveIntensity: 0.4 }),
       mats,
     ),
   );
@@ -212,42 +219,43 @@ function decorateNeon(root: THREE.Group, track: BuiltTrack, mobile: boolean): vo
     ),
   );
 
-  if (!mobile) {
-    const a = new THREE.PointLight(0xff2d7b, 10, 28, 2);
-    a.position.set(20, 6, 30);
-    const b = new THREE.PointLight(0x2de2ff, 10, 28, 2);
-    b.position.set(-20, 6, 10);
-    root.add(a, b);
-  }
+  const a = new THREE.PointLight(0xff2d7b, 12, 32, 2);
+  a.position.set(20, 6, 30);
+  const b = new THREE.PointLight(0x2de2ff, 12, 32, 2);
+  b.position.set(-20, 6, 10);
+  root.add(a, b);
+  addLamps(root, track, 0xff8ad4, mobile);
 }
 
 function addLamps(root: THREE.Group, track: BuiltTrack, color: number, mobile: boolean): void {
   const pole = new THREE.CylinderGeometry(0.07, 0.09, 5.2, 5);
-  const poleMat = new THREE.MeshStandardMaterial({ color: 0x2a2d33, metalness: 0.4, roughness: 0.4 });
-  const lamp = new THREE.SphereGeometry(0.18, 6, 6);
+  const poleMat = new THREE.MeshStandardMaterial({ color: 0x3a3e46, metalness: 0.45, roughness: 0.38 });
+  const lamp = new THREE.SphereGeometry(0.22, 8, 8);
   const lampMat = new THREE.MeshBasicMaterial({ color });
-  const poles = plantAlong(track, mobile ? 22 : 14, 3.2, 0.2, 2.6, 2.8);
+  const poles = plantAlong(track, mobile ? 16 : 11, 3.4, 0.15, 2.6, 2.8);
   if (!poles.length) return;
   root.add(instanceOf(pole, poleMat, poles));
-  const heads = poles.map((m) => {
+  const heads: THREE.Matrix4[] = [];
+  for (const m of poles) {
     const o = new THREE.Object3D();
     o.matrix.copy(m);
     o.position.setFromMatrixPosition(m);
     o.position.y += 2.6;
     o.updateMatrix();
-    return o.matrix.clone();
-  });
+    heads.push(o.matrix.clone());
+    track.lampPositions.push(o.position.clone());
+  }
   root.add(instanceOf(lamp, lampMat, heads));
 }
 
-export function makeLights(track: BuiltTrack, mobile: boolean): THREE.Group {
+export function makeLights(track: BuiltTrack, _mobile: boolean): THREE.Group {
   const g = new THREE.Group();
   const pal = track.def.palette;
-  const hemi = new THREE.HemisphereLight(pal.ambient, pal.hemiGround, mobile ? 1.05 : 1.25);
-  const dir = new THREE.DirectionalLight(pal.sun, mobile ? 1.05 : 1.35);
+  const hemi = new THREE.HemisphereLight(pal.ambient, pal.hemiGround, 1.55);
+  const dir = new THREE.DirectionalLight(pal.sun, 1.45);
   dir.position.set(pal.sunDir[0] * 40, pal.sunDir[1] * 40, pal.sunDir[2] * 40);
-  if (!mobile) {
-    dir.castShadow = true;
+  dir.castShadow = !_mobile;
+  if (dir.castShadow) {
     dir.shadow.mapSize.set(1024, 1024);
     dir.shadow.camera.near = 2;
     dir.shadow.camera.far = 160;
@@ -256,6 +264,14 @@ export function makeLights(track: BuiltTrack, mobile: boolean): THREE.Group {
     dir.shadow.camera.top = 50;
     dir.shadow.camera.bottom = -50;
   }
-  g.add(hemi, dir);
+  const fill = new THREE.DirectionalLight(0x8eb0d8, 0.55);
+  fill.position.set(-pal.sunDir[0] * 20, 18, -pal.sunDir[2] * 20);
+  const rim = new THREE.DirectionalLight(0xffc56a, 0.35);
+  rim.position.set(8, 6, -16);
+  g.add(hemi, dir, fill, rim);
   return g;
+}
+
+export function makeRaceEnvironment(): THREE.CubeTexture {
+  return makeNightEnv();
 }

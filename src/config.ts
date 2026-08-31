@@ -2,19 +2,35 @@ export const GAME_TITLE = "Pista Maluca";
 
 export const TOTAL_LAPS = 3;
 export const RACER_COUNT = 4;
+export const TOUCH_VIEWPORT_MAX = 820;
 
 export const CUP_POINTS = [10, 7, 5, 3] as const;
 
-export const isTouchPreferred = (): boolean => {
+/**
+ * On-screen race pads must appear when the screen is phone-narrow, OR the
+ * pointer is coarse, OR the device reports touch points. Never gate this on
+ * ontouchstart / hover:none alone — Chrome CDP and some Safari cases report
+ * pointer:fine and maxTouchPoints=0 even at 390×844.
+ */
+export const wantsTouchControls = (): boolean => {
   if (typeof window === "undefined") return false;
-  const coarse = window.matchMedia("(pointer: coarse)").matches;
-  const noHover = window.matchMedia("(hover: none)").matches;
-  return coarse || (navigator.maxTouchPoints > 0 && noHover);
+  const narrow = window.innerWidth < TOUCH_VIEWPORT_MAX;
+  let coarse = false;
+  try {
+    coarse = window.matchMedia("(pointer: coarse)").matches;
+  } catch {
+    coarse = false;
+  }
+  const points = typeof navigator !== "undefined" ? navigator.maxTouchPoints : 0;
+  return narrow || coarse || points > 0;
 };
+
+/** @deprecated alias — same rule as wantsTouchControls */
+export const isTouchPreferred = (): boolean => wantsTouchControls();
 
 export const isMobileViewport = (): boolean => {
   if (typeof window === "undefined") return false;
-  return window.innerWidth < 820 || isTouchPreferred();
+  return window.innerWidth < TOUCH_VIEWPORT_MAX || wantsTouchControls();
 };
 
 export function clamp(v: number, lo: number, hi: number): number {

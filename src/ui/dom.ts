@@ -1,4 +1,4 @@
-import { TOTAL_LAPS, formatTime, isTouchPreferred } from "../config";
+import { TOTAL_LAPS, formatTime, wantsTouchControls } from "../config";
 import { KARTS } from "../karts/roster";
 import { TRACKS } from "../tracks/catalog";
 import { ITEM_LABEL } from "../items/system";
@@ -109,7 +109,7 @@ export class UI {
   }
 
   controls(back = "back"): void {
-    const touch = isTouchPreferred();
+    const touch = wantsTouchControls();
     this.set(`
       <section class="screen solid">
         <div class="screen-body">
@@ -165,11 +165,12 @@ export class UI {
       </button>`;
     }).join("");
     this.set(`
-      <section class="screen solid">
-        <div class="screen-body">
+      <section class="screen garage">
+        <div class="garage-stage" aria-hidden="true"></div>
+        <div class="screen-body garage-body">
           <div class="eyebrow">${cup ? "Campeonato curto" : "Corrida rápida"}</div>
           <h2>Escolha o kart</h2>
-          <div class="grid">${cards}</div>
+          <div class="grid kart-grid">${cards}</div>
         </div>
         <div class="screen-foot">
           <button type="button" class="btn ghost" data-act="back">Voltar</button>
@@ -201,38 +202,34 @@ export class UI {
       </section>`);
   }
 
-  raceHud(touch: boolean): void {
+  raceHud(_touch = true): void {
     this.set(`
       <div class="hud">
         <div class="hud-top">
           <div class="pos"><span id="hud-pos">P4</span><small id="hud-name">—</small></div>
-          <div class="lap-box"><div class="kicker">Volta</div><div class="num" id="hud-lap">1/3</div></div>
         </div>
-        <div class="hud-mid">
+        <div class="lap-box"><div class="kicker">Volta</div><div class="num" id="hud-lap">1/3</div></div>
+        <div class="hud-map">
           <canvas id="minimap" width="264" height="264"></canvas>
-          <div class="item-slot" id="hud-item">vazio</div>
         </div>
         <div class="hud-bot">
           <div class="speed-box"><div class="kicker">km/h</div><div class="num" id="hud-spd">0</div></div>
+          <div class="item-slot" id="hud-item">VAZIO</div>
         </div>
       </div>
       <div class="countdown hidden" id="countdown">3</div>
       <div class="banner hidden" id="banner"></div>
       <div class="soot-veil hidden" id="soot-veil"></div>
       <button type="button" class="icon-btn pause-btn" data-act="pause" aria-label="Pausa">II</button>
-      ${
-        touch
-          ? `<div class="touch" id="touch">
-              <div class="zone stick-wrap"><div class="stick-base"></div><div class="stick-knob"></div></div>
-              <div class="zone pad-right">
-                <button type="button" class="pad-btn item" data-pad="item">Item</button>
-                <button type="button" class="pad-btn drift" data-pad="drift">Drift</button>
-                <button type="button" class="pad-btn brake" data-pad="brake">Freio</button>
-                <button type="button" class="pad-btn accel" data-pad="throttle">Acelera</button>
-              </div>
-            </div>`
-          : ""
-      }
+      <div class="touch" id="touch">
+        <div class="zone stick-wrap" aria-label="Direção"><div class="stick-base"></div><div class="stick-knob"></div></div>
+        <div class="zone pad-right">
+          <button type="button" class="pad-btn item" data-pad="item">Item</button>
+          <button type="button" class="pad-btn drift" data-pad="drift">Drift</button>
+          <button type="button" class="pad-btn brake" data-pad="brake">Freio</button>
+          <button type="button" class="pad-btn accel" data-pad="throttle">Acelera</button>
+        </div>
+      </div>
     `);
     const c = this.root.querySelector("#minimap") as HTMLCanvasElement | null;
     this.minimap = c?.getContext("2d") ?? null;
@@ -258,7 +255,7 @@ export class UI {
     if (lap) lap.textContent = `${Math.min(data.laps, data.lap + 1)}/${data.laps}`;
     if (spd) spd.textContent = String(Math.max(0, Math.round(data.speed * 4.6)));
     if (item) {
-      item.textContent = data.item ? ITEM_LABEL[data.item] : "vazio";
+      item.textContent = data.item ? ITEM_LABEL[data.item] : "VAZIO";
       item.classList.toggle("armed", !!data.item);
     }
     this.root.querySelector("#soot-veil")?.classList.toggle("hidden", !data.smoke);
@@ -335,12 +332,18 @@ export class UI {
     existing?.remove();
     const wrap = document.createElement("div");
     wrap.className = "overlay";
+    const touch = wantsTouchControls();
     wrap.innerHTML = `
       <div class="panel">
         <div class="eyebrow">Prova interrompida</div>
         <h2>Pausa</h2>
         <div class="sheet" style="margin-top:10px">
-          <p><b>↑ W</b> acelera · <b>↓ S</b> freia · <b>A D</b> dirige · <b>Shift</b> drift · <b>E</b> item</p>
+          ${
+            touch
+              ? `<p><b>Esquerda:</b> direcional (arraste). <b>Direita:</b> Acelera, Freio, Drift e Item.</p>
+                 <p>Teclado no tablet: <b>W</b> acelera · <b>S</b> freia · <b>A D</b> dirige · <b>Shift</b> drift · <b>E</b> item.</p>`
+              : `<p><b>↑ W</b> acelera · <b>↓ S</b> freia · <b>A D</b> dirige · <b>Shift</b> drift · <b>E</b> item</p>`
+          }
         </div>
         <div class="stack">
           <button type="button" class="btn primary" data-act="resume">Continuar</button>

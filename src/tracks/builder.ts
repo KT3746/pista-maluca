@@ -86,9 +86,10 @@ function addRibbon(
 
   const roadMat = new THREE.MeshStandardMaterial({
     map: asphalt,
-    roughness: 0.78,
-    metalness: 0.06,
-    color: 0xd0d4dc,
+    roughness: 0.32,
+    metalness: 0.18,
+    color: 0xe4e8f0,
+    envMapIntensity: 0.85,
   });
   const road = new THREE.Mesh(roadGeo, roadMat);
   road.receiveShadow = true;
@@ -164,40 +165,48 @@ function makeCenterDash(samples: TrackSample[]): THREE.Mesh {
 
 function makeStartGate(sample: TrackSample): THREE.Group {
   const g = new THREE.Group();
+  const yaw = Math.atan2(sample.tangent.x, sample.tangent.z);
   const hw = sample.halfWidth;
-  const bar = new THREE.Mesh(
-    new THREE.BoxGeometry(hw * 2 + 2.4, 0.08, 0.7),
-    new THREE.MeshStandardMaterial({ color: 0xf2f2f0, roughness: 0.4 }),
+
+  const stripe = new THREE.Mesh(
+    new THREE.BoxGeometry(hw * 2 + 0.4, 0.04, 0.55),
+    new THREE.MeshStandardMaterial({ color: 0xf2f2f0, roughness: 0.45 }),
   );
-  bar.position.copy(sample.position).addScaledVector(sample.normal, 0.05);
-  bar.lookAt(sample.position.clone().add(sample.tangent));
-  g.add(bar);
+  stripe.position.copy(sample.position);
+  stripe.position.y += 0.03;
+  stripe.rotation.y = yaw;
+  g.add(stripe);
 
   for (const side of [-1, 1]) {
     const pole = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.12, 0.14, 4.6, 8),
-      new THREE.MeshStandardMaterial({ color: 0xb8bec6, metalness: 0.55, roughness: 0.35 }),
+      new THREE.CylinderGeometry(0.1, 0.12, 4.2, 8),
+      new THREE.MeshStandardMaterial({ color: 0x9aa3ae, metalness: 0.55, roughness: 0.35 }),
     );
-    pole.position.copy(sample.position).addScaledVector(sample.binormal, side * (hw + 0.9));
-    pole.position.y += 2.3;
+    pole.position.copy(sample.position).addScaledVector(sample.binormal, side * (hw + 0.7));
+    pole.position.y += 2.1;
     g.add(pole);
   }
 
   const gantry = new THREE.Mesh(
-    new THREE.BoxGeometry(hw * 2 + 2.2, 0.35, 0.35),
-    new THREE.MeshStandardMaterial({ color: 0x111318, metalness: 0.4, roughness: 0.45 }),
+    new THREE.BoxGeometry(hw * 2 + 1.6, 0.22, 0.22),
+    new THREE.MeshStandardMaterial({ color: 0x1a1d24, metalness: 0.4, roughness: 0.45 }),
   );
-  gantry.position.copy(sample.position).addScaledVector(sample.normal, 4.4);
+  gantry.position.copy(sample.position);
+  gantry.position.y += 4.15;
+  gantry.rotation.y = yaw;
   g.add(gantry);
 
-  const plate = new THREE.Mesh(
-    new THREE.PlaneGeometry(3.2, 0.7),
-    new THREE.MeshBasicMaterial({ color: 0xd4a017, side: THREE.DoubleSide }),
-  );
-  plate.position.copy(gantry.position);
-  plate.position.y += 0.15;
-  plate.lookAt(plate.position.clone().add(sample.tangent));
-  g.add(plate);
+  const lightGeo = new THREE.SphereGeometry(0.12, 8, 8);
+  const colors = [0xc43b2c, 0xc43b2c, 0xc43b2c, 0x3dba7a];
+  colors.forEach((c, i) => {
+    const bulb = new THREE.Mesh(lightGeo, new THREE.MeshBasicMaterial({ color: c }));
+    const x = (i - 1.5) * 0.42;
+    bulb.position.copy(sample.position);
+    bulb.position.addScaledVector(sample.binormal, x);
+    bulb.position.y += 3.95;
+    bulb.position.addScaledVector(sample.tangent, 0.18);
+    g.add(bulb);
+  });
   return g;
 }
 
@@ -391,6 +400,7 @@ export function buildTrack(def: TrackDef): BuiltTrack {
     length,
     group,
     itemBoxAnchors,
+    lampPositions: [],
     startPose: {
       position: start.position.clone(),
       heading: headingFromTangent(start.tangent),

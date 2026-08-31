@@ -43,19 +43,20 @@ export class ItemSystem {
 
   setup(track: BuiltTrack): void {
     this.clear();
-    const geo = new THREE.OctahedronGeometry(0.72, 0);
+    const geo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
     const mat = new THREE.MeshStandardMaterial({
-      color: 0xffd24a,
+      color: 0xffe08a,
       emissive: 0xd4a017,
-      emissiveIntensity: 1.4,
+      emissiveIntensity: 1.1,
       metalness: 0.35,
-      roughness: 0.25,
+      roughness: 0.28,
     });
     for (const pos of track.itemBoxAnchors) {
       const mesh = new THREE.Mesh(geo, mat.clone());
       mesh.position.copy(pos);
+      mesh.frustumCulled = false;
       const halo = new THREE.Mesh(
-        new THREE.TorusGeometry(0.55, 0.05, 6, 14),
+        new THREE.TorusGeometry(0.48, 0.045, 6, 12),
         new THREE.MeshBasicMaterial({ color: 0xffd24a }),
       );
       halo.rotation.x = Math.PI / 2;

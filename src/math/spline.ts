@@ -45,13 +45,18 @@ export function computeFrames(
 ): { tangent: THREE.Vector3; normal: THREE.Vector3; binormal: THREE.Vector3 }[] {
   const frames = [];
   const up = new THREE.Vector3(0, 1, 0);
+  let prevBinormal: THREE.Vector3 | null = null;
   for (let i = 0; i < positions.length; i++) {
     const prev = positions[(i - 1 + positions.length) % positions.length];
     const next = positions[(i + 1) % positions.length];
     const tangent = next.clone().sub(prev).normalize();
     const binormal = new THREE.Vector3().crossVectors(up, tangent);
-    if (binormal.lengthSq() < 1e-5) binormal.set(1, 0, 0);
-    else binormal.normalize();
+    if (binormal.lengthSq() < 1e-5) {
+      if (prevBinormal) binormal.copy(prevBinormal);
+      else binormal.set(1, 0, 0);
+    } else binormal.normalize();
+    if (prevBinormal && binormal.dot(prevBinormal) < 0) binormal.negate();
+    prevBinormal = binormal.clone();
     const normal = new THREE.Vector3().crossVectors(tangent, binormal).normalize();
     frames.push({ tangent, normal, binormal });
   }
