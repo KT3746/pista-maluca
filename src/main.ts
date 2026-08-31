@@ -8,6 +8,7 @@ if (!canvas || !ui) throw new Error("Pista Maluca: DOM incompleto");
 document.body.addEventListener(
   "touchmove",
   (e) => {
+    if (!document.body.classList.contains("is-race")) return;
     e.preventDefault();
   },
   { passive: false },

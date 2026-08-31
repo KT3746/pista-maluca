@@ -157,4 +157,10 @@ export class AudioEngine {
     if (!this.engineGain || !this.ctx) return;
     if (on) this.engineGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.08);
   }
+
+  silence(): void {
+    if (!this.ctx || !this.engineGain) return;
+    this.engineGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.06);
+    this.drift(0);
+  }
 }

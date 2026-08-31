@@ -34,7 +34,7 @@ Segure o drift numa curva e solte **limpo** (sem bater no muro) para um turbo cu
 - **Esquerda:** direcional (arraste).
 - **Direita:** Acelera, Freio, Drift, Item.
 
-A página bloqueia o scroll do Safari. Não depende de pointer lock nem de WebGPU.
+A página **não trava o scroll nos menus** (você consegue ver Voltar e Continuar). Durante a corrida o scroll fica bloqueado para o toque não empurrar a página. Não depende de pointer lock nem de WebGPU.
 
 ## Modos
 

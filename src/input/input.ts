@@ -10,15 +10,37 @@ export class Input {
   private steerTouch = 0;
   private pad = { throttle: false, brake: false, drift: false, item: false };
   private listeners: Array<() => void> = [];
+  private raceLock = false;
 
   constructor() {
     this.touchMode = isTouchPreferred();
+  }
+
+  setRaceLock(on: boolean): void {
+    this.raceLock = on;
+    if (!on) this.resetPlay();
+  }
+
+  resetPlay(): void {
+    this.pad.throttle = false;
+    this.pad.brake = false;
+    this.pad.drift = false;
+    this.pad.item = false;
+    this.steerTouch = 0;
+    this.itemPressed = false;
+    this.pausePressed = false;
+    this.state.throttle = 0;
+    this.state.brake = 0;
+    this.state.steer = 0;
+    this.state.drift = false;
+    this.state.item = false;
   }
 
   bind(root: HTMLElement): void {
     const down = (e: KeyboardEvent) => {
       this.keys.add(e.code);
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) e.preventDefault();
+      if (e.repeat) return;
       if (e.code === "Escape") this.pausePressed = true;
       if (e.code === "KeyE" || e.code === "ControlLeft" || e.code === "ControlRight") this.itemPressed = true;
     };
@@ -33,6 +55,7 @@ export class Input {
     root.addEventListener(
       "touchmove",
       (e) => {
+        if (!this.raceLock) return;
         e.preventDefault();
       },
       { passive: false },

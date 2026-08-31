@@ -28,14 +28,20 @@ body {
   margin: 0;
   width: 100%;
   height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-ui);
-  touch-action: none;
+  touch-action: pan-y;
   overscroll-behavior: none;
   user-select: none;
   -webkit-user-select: none;
+}
+
+body.is-race {
+  touch-action: none;
 }
 
 #app,
@@ -43,6 +49,10 @@ body {
 #ui {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
 }
 
 #scene {
@@ -55,16 +65,22 @@ body {
   pointer-events: none;
 }
 
-#ui * {
+#ui .screen,
+#ui .screen *,
+#ui .overlay,
+#ui .overlay *,
+#ui .icon-btn,
+#ui .touch .zone,
+#ui .touch .zone * {
   pointer-events: auto;
 }
 
 #ui .hud,
+#ui .hud *,
+#ui .countdown,
+#ui .banner,
+#ui .soot-veil,
 #ui .fx-layer {
-  pointer-events: none;
-}
-
-#ui .hud * {
   pointer-events: none;
 }
 
@@ -74,6 +90,7 @@ button,
   font: inherit;
   color: inherit;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .screen {
@@ -81,8 +98,68 @@ button,
   inset: 0;
   display: flex;
   flex-direction: column;
-  padding: calc(28px + var(--safe-t)) 28px calc(28px + var(--safe-b));
+  min-height: 0;
+  overflow: hidden;
+  padding: calc(20px + var(--safe-t)) 24px 0;
   background: linear-gradient(180deg, rgba(7, 8, 12, 0.28) 0%, rgba(7, 8, 12, 0.62) 100%);
+}
+
+.screen-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 12px;
+}
+
+.screen-foot {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  padding: 12px 0 calc(16px + var(--safe-b));
+  background: linear-gradient(180deg, transparent, rgba(7, 8, 12, 0.94) 22%);
+}
+
+.screen-foot .btn {
+  flex: 1;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.screen-foot .btn.primary {
+  flex: 1.65;
+}
+
+.screen-foot.col {
+  flex-direction: column;
+  max-width: 420px;
+  background: none;
+  padding-top: 8px;
+}
+
+.screen-foot.col .btn {
+  flex: none;
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.screen-foot.col .row {
+  width: 100%;
+}
+
+.screen-foot.col .row .btn {
+  width: auto;
+  flex: 1;
 }
 
 .screen.solid {
@@ -145,6 +222,11 @@ h2 {
   flex-wrap: wrap;
 }
 
+.row.actions {
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
 .btn {
   appearance: none;
   border: 1px solid var(--line);
@@ -190,6 +272,11 @@ h2 {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
   margin: 22px 0 18px;
+}
+
+.card:disabled {
+  opacity: 0.78;
+  cursor: default;
 }
 
 .card {
@@ -266,8 +353,22 @@ h2 {
   background: var(--panel);
   width: 48px;
   height: 48px;
+  min-width: 48px;
   border-radius: 2px;
   font-size: 18px;
+}
+
+.mute-btn {
+  width: auto;
+  min-width: 92px;
+  height: auto;
+  min-height: 48px;
+  padding: 10px 14px;
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .hud {
@@ -397,6 +498,7 @@ h2 {
   place-items: center;
   background: rgba(7, 8, 12, 0.62);
   padding: 24px;
+  z-index: 8;
 }
 
 .panel {
@@ -540,13 +642,42 @@ h2 {
   background: rgba(212, 160, 23, 0.22);
 }
 
+.soot-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(18, 18, 20, 0.15), rgba(4, 4, 6, 0.92) 72%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.18) 0 3px, transparent 3px 7px);
+}
+
 .hidden {
   display: none !important;
 }
 
 @media (max-width: 720px) {
   .screen {
-    padding: calc(18px + var(--safe-t)) 16px calc(16px + var(--safe-b));
+    padding: calc(16px + var(--safe-t)) 14px 0;
+  }
+
+  .screen-foot {
+    padding: 10px 0 calc(14px + var(--safe-b));
+  }
+
+  .screen-foot .btn {
+    min-height: 58px;
+    font-size: 18px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    margin: 14px 0 8px;
+    gap: 10px;
+  }
+
+  .card {
+    min-height: 0;
   }
 
   .hud-mid {

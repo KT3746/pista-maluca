@@ -47,7 +47,7 @@ export class Game {
     this.ui.onAction = (a) => this.handle(a);
     this.input.bind(document.body);
     this.setupMenuScene();
-    this.ui.title(this.muted);
+    this.showTitle();
 
     window.addEventListener("resize", () => this.resize());
     document.addEventListener("visibilitychange", () => {
@@ -111,6 +111,19 @@ export class Game {
     this.renderer.setSize(w, h, false);
   }
 
+  private showTitle(): void {
+    this.view = "title";
+    this.ui.title(this.muted);
+    this.syncChrome();
+  }
+
+  private syncChrome(): void {
+    const racing = this.view === "race";
+    document.body.classList.toggle("is-race", racing);
+    document.body.dataset.view = this.view;
+    this.input.setRaceLock(racing);
+  }
+
   private handle(a: { type: string; id?: string }): void {
     void this.audio.unlock();
     switch (a.type) {
@@ -118,43 +131,46 @@ export class Game {
         this.mode = "quick";
         this.view = "karts";
         this.ui.karts(this.kartId, false);
+        this.syncChrome();
         break;
       case "cup":
         this.mode = "cup";
         this.view = "karts";
         this.ui.karts(this.kartId, true);
+        this.syncChrome();
         break;
       case "credits":
         this.view = "credits";
         this.ui.credits();
+        this.syncChrome();
         break;
       case "controls":
         this.view = "controls";
         this.ui.controls();
+        this.syncChrome();
         break;
       case "back":
         if (this.view === "credits" || this.view === "controls") {
-          this.view = "title";
-          this.ui.title(this.muted);
+          this.showTitle();
         } else if (this.view === "tracks") {
           this.view = "karts";
           this.ui.karts(this.kartId, this.mode === "cup");
+          this.syncChrome();
         } else {
-          this.view = "title";
-          this.ui.title(this.muted);
+          this.showTitle();
         }
         break;
       case "kart":
         if (a.id) {
           this.kartId = a.id as KartId;
           this.swapMenuKart(this.kartId);
-          this.ui.karts(this.kartId, this.mode === "cup");
+          this.ui.highlight("kart", a.id);
         }
         break;
       case "track":
         if (a.id) {
           this.trackId = a.id as TrackId;
-          this.ui.tracks(this.trackId, false);
+          this.ui.highlight("track", a.id);
         }
         break;
       case "go":
@@ -165,6 +181,7 @@ export class Game {
             this.cup.start(this.previewField());
           }
           this.ui.tracks(this.trackId, this.mode === "cup");
+          this.syncChrome();
         } else {
           this.bootRace();
         }
@@ -192,6 +209,7 @@ export class Game {
           if (this.cup.done) {
             this.view = "standings";
             this.ui.standings(this.cup.table);
+            this.syncChrome();
           } else {
             this.trackId = this.cup.currentTrack;
             this.bootRace();
@@ -246,6 +264,8 @@ export class Game {
           if (this.race && this.view === "race") {
             this.view = "results";
             this.ui.results(this.race.lastResults, this.mode === "cup", this.mode === "cup" && !this.wouldEndCup());
+            this.audio.silence();
+            this.syncChrome();
           }
         }, 1600);
       }
@@ -254,6 +274,7 @@ export class Game {
     this.ui.raceHud(isTouchPreferred());
     const touch = document.getElementById("touch");
     if (touch) this.input.bindTouch(touch);
+    this.syncChrome();
     this.audio.countdown(3);
   }
 
@@ -284,12 +305,12 @@ export class Game {
   private leaveRace(): void {
     this.race?.dispose();
     this.race = null;
-    this.view = "title";
-    this.ui.title(this.muted);
+    this.audio.silence();
     this.camera.position.set(4.2, 2.4, 5.6);
     this.camera.lookAt(0, 0.6, 0);
     this.camera.fov = 58;
     this.camera.updateProjectionMatrix();
+    this.showTitle();
   }
 
   private tick(dt: number): void {
@@ -304,6 +325,7 @@ export class Game {
         speed: p.kart.speed,
         item: p.item,
         trackName: this.race.built.def.name,
+        smoke: p.kart.smokeTime > 0,
       });
       this.ui.drawMinimap(
         this.race.minimapPoints(),
@@ -315,9 +337,14 @@ export class Game {
       );
       const cd = this.race.countdownLabel();
       if (cd) this.ui.setCountdown(cd);
-      const rpm = Math.min(1, Math.abs(p.kart.speed) / 28);
-      this.audio.engine(rpm, this.input.state.throttle, p.kart.boostTime > 0);
-      this.audio.drift(p.kart.drifting ? 0.7 + p.kart.driftCharge * 0.3 : 0);
+      if (this.race.paused) {
+        this.audio.pauseHum(true);
+        this.audio.drift(0);
+      } else {
+        const rpm = Math.min(1, Math.abs(p.kart.speed) / 28);
+        this.audio.engine(rpm, this.input.state.throttle, p.kart.boostTime > 0);
+        this.audio.drift(p.kart.drifting ? 0.7 + p.kart.driftCharge * 0.3 : 0);
+      }
       this.renderer.render(this.race.scene, this.camera);
       return;
     }
@@ -325,7 +352,7 @@ export class Game {
     if (this.menuKart) this.menuKart.rotation.y += dt * 0.35;
     this.camera.position.x = 4.2 + Math.sin(performance.now() * 0.00025) * 0.4;
     this.camera.lookAt(0, 0.6, 0);
-    this.audio.engine(0.15, 0.05, false);
+    this.audio.engine(0.12, 0.04, false);
     this.audio.drift(0);
     this.renderer.render(this.menuScene, this.camera);
   }
