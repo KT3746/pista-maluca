@@ -35,7 +35,7 @@ function wheel(wide: number, radius: number): THREE.Group {
   return g;
 }
 
-function addWheels(root: THREE.Group, paint: THREE.Material, wideKart: boolean): void {
+function addWheels(root: THREE.Group, wideKart: boolean): void {
   const wr = wideKart ? 0.38 : 0.35;
   const ww = wideKart ? 0.3 : 0.24;
   const spreadX = wideKart ? 0.72 : 0.62;
@@ -51,9 +51,6 @@ function addWheels(root: THREE.Group, paint: THREE.Material, wideKart: boolean):
     w.position.set(x, wr, z);
     w.name = z > 0 ? "wheelF" : "wheelR";
     root.add(w);
-    const fender = new THREE.Mesh(new THREE.BoxGeometry(wideKart ? 0.4 : 0.32, 0.14, 0.55), paint);
-    fender.position.set(x, 0.48, z);
-    root.add(fender);
   }
 }
 
@@ -146,7 +143,7 @@ export function createKartMesh(def: KartDef): THREE.Group {
   visor.position.set(0, 0.9, 0.08);
   root.add(seat, torso, helmet, visor);
 
-  addWheels(root, paint, wide);
+  addWheels(root, wide);
 
   const lampMat = new THREE.MeshBasicMaterial({ color: 0xfff3c8 });
   const l1 = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.06), lampMat);

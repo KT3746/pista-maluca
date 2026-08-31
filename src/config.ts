@@ -49,8 +49,17 @@ export function forceRacePadsVisible(el: HTMLElement | null): void {
   el.style.setProperty("display", "block", "important");
   el.style.setProperty("visibility", "visible", "important");
   el.style.setProperty("opacity", "1", "important");
-  el.style.setProperty("pointer-events", "none", "important");
   el.style.setProperty("z-index", "20", "important");
+  el.style.setProperty("pointer-events", "none", "important");
+  el.querySelectorAll(".zone").forEach((node) => {
+    const z = node as HTMLElement;
+    z.style.setProperty("pointer-events", "auto", "important");
+    z.style.setProperty("touch-action", "none", "important");
+  });
+  el.querySelectorAll("[data-pad], .stick-wrap, .stick-base, .stick-knob, .pad-btn").forEach((node) => {
+    const z = node as HTMLElement;
+    z.style.setProperty("pointer-events", "auto", "important");
+  });
 }
 
 export function clamp(v: number, lo: number, hi: number): number {
