@@ -28,7 +28,8 @@ export class Game {
   private menuKart: THREE.Group | null = null;
   private clock = new THREE.Clock();
   private hidden = false;
-  private frameCarry = 0;
+  private lastTickMs = 0;
+  private rafPulse = false;
 
   constructor(canvas: HTMLCanvasElement, uiRoot: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -68,23 +69,34 @@ export class Game {
 
   start(): void {
     this.clock.start();
-    const loop = () => {
-      requestAnimationFrame(loop);
+    this.lastTickMs = performance.now();
+    const sim = () => {
       if (this.hidden) return;
+      const now = performance.now();
+      let dt = (now - this.lastTickMs) / 1000;
+      if (dt < 0.008) return;
+      this.lastTickMs = now;
+      dt = Math.min(0.12, dt);
       try {
-        this.frameCarry += Math.min(0.4, this.clock.getDelta());
-        const step = 1 / 60;
-        let n = 0;
-        while (this.frameCarry >= step && n < 24) {
-          this.tick(step);
-          this.frameCarry -= step;
-          n++;
-        }
+        this.tick(dt);
       } catch (err) {
         console.error("Pista Maluca: falha no frame", err);
       }
     };
+    const loop = () => {
+      this.rafPulse = true;
+      requestAnimationFrame(loop);
+      sim();
+    };
     loop();
+    // If WebGL/rAF stalls (software GL, low-power Safari), keep the race clock alive.
+    window.setInterval(() => {
+      if (this.rafPulse) {
+        this.rafPulse = false;
+        return;
+      }
+      sim();
+    }, 50);
   }
 
   private setupMenuScene(): void {
