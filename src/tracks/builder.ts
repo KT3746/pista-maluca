@@ -383,7 +383,7 @@ export function buildTrack(def: TrackDef): BuiltTrack {
     addShortcutRibbon(cuts, group, cutTex, cuts[0].surface);
   }
 
-  const itemBoxAnchors = def.itemBoxes.map((p) => queryApprox(samples, p).position.clone().add(new THREE.Vector3(0, 1.1, 0)));
+  const itemBoxAnchors = def.itemBoxes.map((p) => queryApprox(samples, p).position.clone().add(new THREE.Vector3(0, 0.85, 0)));
   const start = samples[0];
   return {
     def,

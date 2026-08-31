@@ -35,6 +35,9 @@ export class KartBody {
   checkpoints = 0;
   wheelSpin = 0;
   offTrackTimer = 0;
+  wallContact = false;
+  stuckTimer = 0;
+  airTime = 0;
 
   reset(pos: THREE.Vector3, heading: number): void {
     this.position.copy(pos);
@@ -54,7 +57,35 @@ export class KartBody {
     this.finished = false;
     this.checkpoints = 0;
     this.offTrackTimer = 0;
+    this.wallContact = false;
+    this.stuckTimer = 0;
+    this.airTime = 0;
   }
+}
+
+function snapToRibbon(kart: KartBody, track: BuiltTrack): void {
+  const main = track.samples.filter((x) => !x.shortcut);
+  let s = main[0] ?? track.samples[0];
+  let best = 1;
+  for (const cand of main) {
+    const d = Math.abs(cand.progress - kart.progress);
+    const wrap = Math.min(d, 1 - d);
+    if (wrap < best) {
+      best = wrap;
+      s = cand;
+    }
+  }
+  kart.position.copy(s.position);
+  kart.position.y += 0.06;
+  kart.heading = Math.atan2(s.tangent.x, s.tangent.z);
+  kart.speed = Math.max(4, kart.speed * 0.4);
+  kart.airborne = false;
+  kart.vertVel = 0;
+  kart.shake = 0.28;
+  kart.offTrackTimer = 0;
+  kart.stuckTimer = 0;
+  kart.airTime = 0;
+  kart.wallContact = false;
 }
 
 const FWD = new THREE.Vector3();
@@ -88,31 +119,31 @@ export function stepKart(
   kart.onAsphalt = q.surface === "asphalt" && Math.abs(q.lateral) < q.halfWidth;
   const onRunoff = Math.abs(q.lateral) > q.halfWidth && Math.abs(q.lateral) < q.halfWidth + q.runoff;
 
-  if (Math.abs(q.lateral) > q.halfWidth + q.runoff + 6 || kart.position.y < -4) {
-    const s = track.samples[kart.sampleIndex] ?? track.samples[0];
-    kart.position.copy(s.position);
-    kart.heading = Math.atan2(s.tangent.x, s.tangent.z);
-    kart.speed *= 0.25;
-    kart.shake = 0.3;
-    kart.offTrackTimer = 0;
+  const away = kart.position.distanceTo(q.sample.position);
+  if (Math.abs(q.lateral) > q.halfWidth + q.runoff + 3.2 || kart.position.y < -2 || away > 16) {
+    snapToRibbon(kart, track);
+    return;
   }
 
   const groundY = q.height + 0.02;
   if (!kart.airborne) {
-    if (q.slope > 0.38 && kart.speed > 16) {
+    kart.airTime = 0;
+    if (q.slope > 0.48 && kart.speed > 20 && kart.onAsphalt) {
       kart.airborne = true;
-      kart.vertVel = kart.speed * q.slope * 0.42;
+      kart.vertVel = kart.speed * q.slope * 0.32;
     } else {
-      kart.position.y = damp(kart.position.y, groundY, 14, dt);
+      kart.position.y = damp(kart.position.y, groundY, 16, dt);
     }
   } else {
-    kart.vertVel -= 24 * dt;
+    kart.airTime += dt;
+    kart.vertVel -= 26 * dt;
     kart.position.y += kart.vertVel * dt;
-    if (kart.position.y <= groundY) {
+    if (kart.position.y <= groundY || kart.airTime > 1.6) {
       kart.position.y = groundY;
       kart.airborne = false;
       kart.vertVel = 0;
-      if (Math.abs(kart.vertVel) > 6) kart.shake = 0.18;
+      kart.airTime = 0;
+      kart.shake = Math.max(kart.shake, 0.12);
     }
   }
 
@@ -165,20 +196,43 @@ export function stepKart(
 
   FWD.set(Math.sin(kart.heading), 0, Math.cos(kart.heading));
   kart.position.addScaledVector(FWD, kart.speed * dt);
+  if (onRunoff && !kart.airborne) {
+    kart.position.addScaledVector(q.right, -Math.sign(q.lateral) * 2.4 * dt);
+  }
 
   const q2 = queryTrack(track.samples, kart.position);
   kart.progress = q2.progress;
   kart.lateral = q2.lateral;
   const limit = q2.halfWidth + q2.runoff;
-  if (Math.abs(q2.lateral) > limit) {
-    PUSH.copy(q2.right).multiplyScalar(-Math.sign(q2.lateral) * (Math.abs(q2.lateral) - limit + 0.04));
+  const over = Math.abs(q2.lateral) - limit;
+  if (over > 0) {
+    PUSH.copy(q2.right).multiplyScalar(-Math.sign(q2.lateral) * (over + 0.12));
     kart.position.add(PUSH);
-    kart.speed *= 0.62;
-    kart.shake = Math.max(kart.shake, 0.22);
-    if (kart.drifting) kart.driftCharge *= 0.35;
+    if (!kart.wallContact) {
+      kart.speed *= 0.78;
+      kart.heading += -Math.sign(q2.lateral) * 0.18;
+      kart.shake = Math.max(kart.shake, 0.2);
+      if (kart.drifting) kart.driftCharge *= 0.35;
+    }
+    kart.wallContact = true;
     kart.offTrackTimer += dt;
+    if (over > 3.5 || kart.offTrackTimer > 1.15) {
+      snapToRibbon(kart, track);
+      return;
+    }
   } else {
+    kart.wallContact = false;
     kart.offTrackTimer = 0;
+  }
+
+  if (!kart.onAsphalt && Math.abs(kart.speed) < 2 && throttle > 0) {
+    kart.stuckTimer += dt;
+    if (kart.stuckTimer > 1.4) {
+      snapToRibbon(kart, track);
+      return;
+    }
+  } else {
+    kart.stuckTimer = 0;
   }
 
   kart.roll = damp(kart.roll, -steerIn * 0.18 - kart.yawRate * 0.08, 8, dt);

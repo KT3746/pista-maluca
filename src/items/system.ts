@@ -155,7 +155,7 @@ export class ItemSystem {
       box.mesh.position.y = box.pos.y + Math.sin(this.clock * 3 + box.pos.x) * 0.12;
       for (const r of racers) {
         if (r.item || r.kart.finished) continue;
-        if (r.kart.position.distanceTo(box.mesh.position) < 1.7 + (r.kart.magnetTime > 0 ? 3.5 : 0)) {
+        if (r.kart.position.distanceTo(box.mesh.position) < 2.3 + (r.kart.magnetTime > 0 ? 3.5 : 0)) {
           r.item = this.roll(r.place);
           box.alive = false;
           box.respawn = 6.5;
