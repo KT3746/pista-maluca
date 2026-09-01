@@ -178,11 +178,15 @@ export class Input {
     const left = k.has("ArrowLeft") || k.has("KeyA");
     const right = k.has("ArrowRight") || k.has("KeyD");
     const drift = k.has("ShiftLeft") || k.has("ShiftRight") || k.has("Space") || this.pad.drift;
-    let steer = (right ? 1 : 0) - (left ? 1 : 0);
-    if (this.steerTouch) steer = this.steerTouch;
+    // Finger-right and ArrowRight/D stay positive here. Physics yaws +steer
+    // toward world +X, but the chase cam looks toward +Z so Three.js
+    // camera.right is world -X — a +X yaw reads as a LEFT turn on screen.
+    // Invert once so stick and keyboard agree and player-right yaws right.
+    let playerRight = (right ? 1 : 0) - (left ? 1 : 0);
+    if (this.steerTouch) playerRight = this.steerTouch;
     this.state.throttle = this.pad.throttle || up ? 1 : 0;
     this.state.brake = this.pad.brake || down ? 1 : 0;
-    this.state.steer = clamp(steer, -1, 1);
+    this.state.steer = clamp(-playerRight, -1, 1);
     this.state.drift = drift;
     this.state.item = this.itemPressed;
     return this.state;
