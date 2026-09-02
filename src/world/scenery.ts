@@ -45,7 +45,7 @@ export function decorateTrack(track: BuiltTrack, mobile: boolean): THREE.Group {
   const pal = track.def.palette;
 
   const sky = new THREE.Mesh(
-    new THREE.SphereGeometry(420, 24, 16),
+    new THREE.SphereGeometry(420, 48, 24),
     new THREE.MeshBasicMaterial({
       map: makeSkyTexture(pal.skyTop, pal.skyHorizon),
       side: THREE.BackSide,
@@ -55,7 +55,7 @@ export function decorateTrack(track: BuiltTrack, mobile: boolean): THREE.Group {
   root.add(sky);
 
   const ground = new THREE.Mesh(
-    new THREE.CircleGeometry(520, 48),
+    new THREE.CircleGeometry(520, 96),
     new THREE.MeshStandardMaterial({
       color: track.def.mood === "coast" ? 0x2a5a3a : track.def.mood === "neon" ? 0x3a2438 : 0x3d5340,
       roughness: 0.92,

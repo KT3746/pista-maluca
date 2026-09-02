@@ -45,19 +45,23 @@ function addRibbon(
     const i1 = i * 2 + 1;
     const i2 = ((i + 1) % n) * 2;
     const i3 = ((i + 1) % n) * 2 + 1;
-    idx.push(i0, i2, i1, i1, i2, i3);
+    if (a.position.distanceTo(b.position) < 8 && a.binormal.dot(b.binormal) > 0.15) {
+      idx.push(i0, i2, i1, i1, i2, i3);
+    }
 
     const stripe = Math.floor(dist / 2.2) % 2 === 0 ? curbA : curbB;
-    for (const side of [-1, 1]) {
+    for (const side of [-1, 1] as const) {
       const inner = a.position.clone().addScaledVector(a.binormal, side * (hw - 0.08));
       const outer = a.position.clone().addScaledVector(a.binormal, side * (hw + 0.55));
-      inner.y += 0.04;
-      outer.y += 0.02;
-      const base = curbPos.length / 3;
+      inner.y += 0.05;
+      outer.y += 0.03;
       curbPos.push(inner.x, inner.y, inner.z, outer.x, outer.y, outer.z);
       curbCol.push(stripe.r, stripe.g, stripe.b, stripe.r, stripe.g, stripe.b);
-      if (i < n) {
-        const nextBase = ((i + 1) % n) * 4 + (side === -1 ? 0 : 2);
+    }
+    if (segmentJoins(a, b)) {
+      for (const off of [0, 2]) {
+        const base = i * 4 + off;
+        const nextBase = ((i + 1) % n) * 4 + off;
         curbIdx.push(base, nextBase, base + 1, base + 1, nextBase, nextBase + 1);
       }
     }
@@ -72,8 +76,10 @@ function addRibbon(
     runUv.push(0, dist * 0.08, 0.35, dist * 0.08, 0.65, dist * 0.08, 1, dist * 0.08);
     const rb = i * 4;
     const nb = ((i + 1) % n) * 4;
-    runIdx.push(rb, nb, rb + 1, rb + 1, nb, nb + 1);
-    runIdx.push(rb + 2, nb + 2, rb + 3, rb + 3, nb + 2, nb + 3);
+    if (segmentJoins(a, b)) {
+      runIdx.push(rb, nb, rb + 1, rb + 1, nb, nb + 1);
+      runIdx.push(rb + 2, nb + 2, rb + 3, rb + 3, nb + 2, nb + 3);
+    }
 
     dist += a.position.distanceTo(b.position);
   }
@@ -108,7 +114,14 @@ function addRibbon(
   curbGeo.computeVertexNormals();
   const curb = new THREE.Mesh(
     curbGeo,
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.1 }),
+    new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.45,
+      metalness: 0.1,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
+    }),
   );
   group.add(curb);
 
@@ -138,11 +151,19 @@ function addRibbon(
   group.add(wall);
 }
 
+function segmentJoins(a: TrackSample, b: TrackSample): boolean {
+  if (a.shortcut || b.shortcut) return false;
+  const gap = a.position.distanceTo(b.position);
+  if (!Number.isFinite(gap) || gap < 0.04 || gap > 6.5) return false;
+  return a.binormal.dot(b.binormal) > 0.35;
+}
+
 function makeCenterDash(samples: TrackSample[]): THREE.Mesh {
   const pos: number[] = [];
   const idx: number[] = [];
   let on = true;
   let acc = 0;
+  const half = 0.12;
   for (let i = 0; i < samples.length; i++) {
     const a = samples[i];
     const b = samples[(i + 1) % samples.length];
@@ -151,25 +172,32 @@ function makeCenterDash(samples: TrackSample[]): THREE.Mesh {
       acc = 0;
       on = !on;
     }
-    if (!on || a.shortcut) continue;
-    const l = a.position.clone().addScaledVector(a.binormal, -0.14);
-    const r = a.position.clone().addScaledVector(a.binormal, 0.14);
-    l.y += 0.03;
-    r.y += 0.03;
+    if (!on || !segmentJoins(a, b)) continue;
+    const l = a.position.clone().addScaledVector(a.binormal, -half);
+    const r = a.position.clone().addScaledVector(a.binormal, half);
+    const l2 = b.position.clone().addScaledVector(b.binormal, -half);
+    const r2 = b.position.clone().addScaledVector(b.binormal, half);
+    l.y += 0.05;
+    r.y += 0.05;
+    l2.y += 0.05;
+    r2.y += 0.05;
     const base = pos.length / 3;
-    pos.push(l.x, l.y, l.z, r.x, r.y, r.z);
-    const next = samples[(i + 1) % samples.length];
-    const l2 = next.position.clone().addScaledVector(next.binormal, -0.08);
-    const r2 = next.position.clone().addScaledVector(next.binormal, 0.08);
-    l2.y += 0.03;
-    r2.y += 0.03;
-    pos.push(l2.x, l2.y, l2.z, r2.x, r2.y, r2.z);
+    pos.push(l.x, l.y, l.z, r.x, r.y, r.z, l2.x, l2.y, l2.z, r2.x, r2.y, r2.z);
     idx.push(base, base + 2, base + 1, base + 1, base + 2, base + 3);
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   geo.setIndex(idx);
-  return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xd8dbe0 }));
+  return new THREE.Mesh(
+    geo,
+    new THREE.MeshBasicMaterial({
+      color: 0xd8dbe0,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+      depthWrite: false,
+    }),
+  );
 }
 
 function makeStartGate(sample: TrackSample): THREE.Group {
@@ -224,30 +252,33 @@ function makeBarriers(samples: TrackSample[], palette: TrackDef["palette"]): THR
   const col: number[] = [];
   const idx: number[] = [];
   const color = new THREE.Color(palette.curbA).lerp(new THREE.Color("#2a2d33"), 0.55);
-  for (let i = 0; i < samples.length; i++) {
+  const n = samples.length;
+  const wallH = 0.82;
+  const thick = 0.22;
+  for (let i = 0; i < n; i++) {
     const a = samples[i];
-    if (a.shortcut) continue;
-    const hw = a.halfWidth + a.runoff + 0.15;
-    for (const side of [-1, 1]) {
-      const baseFoot = a.position.clone().addScaledVector(a.binormal, side * hw);
-      const top = baseFoot.clone();
-      top.y += 1.05;
-      const inward = a.position.clone().addScaledVector(a.binormal, side * (hw - 0.18));
-      inward.y += 1.05;
-      const b0 = pos.length / 3;
-      pos.push(baseFoot.x, baseFoot.y, baseFoot.z, top.x, top.y, top.z, inward.x, inward.y, inward.z);
-      for (let k = 0; k < 3; k++) col.push(color.r, color.g, color.b);
-      const next = samples[(i + 1) % samples.length];
-      if (next.shortcut) continue;
-      const nFoot = next.position.clone().addScaledVector(next.binormal, side * (next.halfWidth + next.runoff + 0.15));
-      const nTop = nFoot.clone();
-      nTop.y += 1.05;
-      const nIn = next.position.clone().addScaledVector(next.binormal, side * (next.halfWidth + next.runoff - 0.03));
-      nIn.y += 1.05;
-      const b1 = pos.length / 3;
-      pos.push(nFoot.x, nFoot.y, nFoot.z, nTop.x, nTop.y, nTop.z, nIn.x, nIn.y, nIn.z);
-      for (let k = 0; k < 3; k++) col.push(color.r, color.g, color.b);
-      idx.push(b0, b1, b0 + 1, b0 + 1, b1, b1 + 1);
+    const hw = a.halfWidth + a.runoff + 0.12;
+    for (const side of [-1, 1] as const) {
+      const outer = a.position.clone().addScaledVector(a.binormal, side * hw);
+      const inner = a.position.clone().addScaledVector(a.binormal, side * (hw - thick));
+      pos.push(
+        outer.x, outer.y, outer.z,
+        outer.x, outer.y + wallH, outer.z,
+        inner.x, inner.y + wallH, inner.z,
+        inner.x, inner.y, inner.z,
+      );
+      for (let k = 0; k < 4; k++) col.push(color.r, color.g, color.b);
+    }
+  }
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    if (!segmentJoins(samples[i], samples[j])) continue;
+    for (let s = 0; s < 2; s++) {
+      const i0 = i * 8 + s * 4;
+      const j0 = j * 8 + s * 4;
+      idx.push(i0 + 3, i0 + 2, j0 + 2, i0 + 3, j0 + 2, j0 + 3);
+      idx.push(i0 + 2, i0 + 1, j0 + 1, i0 + 2, j0 + 1, j0 + 2);
+      idx.push(i0 + 1, i0 + 0, j0 + 0, i0 + 1, j0 + 0, j0 + 1);
     }
   }
   const geo = new THREE.BufferGeometry();
@@ -255,14 +286,21 @@ function makeBarriers(samples: TrackSample[], palette: TrackDef["palette"]): THR
   geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
   geo.setIndex(idx);
   geo.computeVertexNormals();
-  return new THREE.Mesh(
+  const wall = new THREE.Mesh(
     geo,
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.2, side: THREE.DoubleSide }),
+    new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.58,
+      metalness: 0.16,
+      side: THREE.DoubleSide,
+    }),
   );
+  wall.frustumCulled = false;
+  return wall;
 }
 
 function buildSamples(def: TrackDef): TrackSample[] {
-  const sampled = sampleClosedSpline(def.points, 16);
+  const sampled = sampleClosedSpline(def.points, 28);
   const positions = sampled.map((s) => s.position);
   const frames = computeFrames(positions);
   const length = pathLength(positions);
