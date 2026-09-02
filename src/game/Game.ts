@@ -454,6 +454,9 @@ export class Game {
       );
       const cd = this.race.countdownLabel();
       if (cd) this.ui.setCountdown(cd);
+      if (new URLSearchParams(location.search).get("steer") === "1") {
+        this.ui.setSteerDebug(this.input.debugLine());
+      }
       if (this.race.paused) {
         this.audio.pauseHum(true);
         this.audio.drift(0);

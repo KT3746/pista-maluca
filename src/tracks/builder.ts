@@ -120,7 +120,6 @@ function addRibbon(
     polygonOffsetFactor: -1,
     polygonOffsetUnits: -1,
   });
-  hideNearCamera(curbMat, 3.2);
   const curb = new THREE.Mesh(curbGeo, curbMat);
   group.add(curb);
 
@@ -148,36 +147,6 @@ function addRibbon(
 
   const wall = makeBarriers(samples, palette);
   group.add(wall);
-}
-
-/** Drop wall/curb pixels glued to the lens so a near-plane clip cannot fill the frame. */
-function hideNearCamera(mat: THREE.Material, meters = 3.6): void {
-  const key = `hideNear${meters}`;
-  mat.customProgramCacheKey = () => key;
-  mat.onBeforeCompile = (shader) => {
-    shader.vertexShader = shader.vertexShader
-      .replace(
-        "#include <common>",
-        `#include <common>
-         varying float vCamDist;`,
-      )
-      .replace(
-        "#include <project_vertex>",
-        `#include <project_vertex>
-         vCamDist = length(mvPosition.xyz);`,
-      );
-    shader.fragmentShader = shader.fragmentShader
-      .replace(
-        "#include <common>",
-        `#include <common>
-         varying float vCamDist;`,
-      )
-      .replace(
-        "#include <clipping_planes_fragment>",
-        `#include <clipping_planes_fragment>
-         if (vCamDist < ${meters.toFixed(2)}) discard;`,
-      );
-  };
 }
 
 function segmentJoins(a: TrackSample, b: TrackSample): boolean {
@@ -321,7 +290,6 @@ function makeBarriers(samples: TrackSample[], palette: TrackDef["palette"]): THR
     metalness: 0.16,
     side: THREE.DoubleSide,
   });
-  hideNearCamera(wallMat, 3.8);
   const wall = new THREE.Mesh(geo, wallMat);
   wall.frustumCulled = false;
   return wall;

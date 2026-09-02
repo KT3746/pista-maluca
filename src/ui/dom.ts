@@ -251,6 +251,7 @@ export class UI {
           <div class="item-slot" id="hud-item">VAZIO</div>
         </div>
       </div>
+      <div class="steer-dbg hidden" id="steer-dbg"></div>
       <div class="countdown hidden" id="countdown">3</div>
       <div class="banner hidden" id="banner"></div>
       <div class="soot-veil hidden" id="soot-veil"></div>
@@ -292,6 +293,16 @@ export class UI {
       item.classList.toggle("armed", !!data.item);
     }
     this.root.querySelector("#soot-veil")?.classList.toggle("hidden", !data.smoke);
+  }
+
+  setSteerDebug(text: string | null): void {
+    const el = this.root.querySelector("#steer-dbg");
+    if (!el) return;
+    if (!text) el.classList.add("hidden");
+    else {
+      el.classList.remove("hidden");
+      el.textContent = text;
+    }
   }
 
   drawMinimap(

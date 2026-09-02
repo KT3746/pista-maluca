@@ -283,7 +283,7 @@ export class Race {
       r.mesh.position.copy(r.kart.position);
       r.mesh.rotation.y = r.kart.heading;
     }
-    this.cameraRig.update(camera, this.player.kart, dt, false, this.built);
+    this.cameraRig.update(camera, this.player.kart, dt, true, this.built);
     this.syncCarLights();
   }
 

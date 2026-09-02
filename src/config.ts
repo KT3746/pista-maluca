@@ -32,14 +32,17 @@ export const isPhoneViewport = (): boolean => layoutWidth() < TOUCH_VIEWPORT_MAX
  */
 export const wantsTouchControls = (): boolean => {
   if (typeof window === "undefined") return false;
+  // Phone-narrow always gets pads (CDP at 390×844 often lies about hover/points).
+  if (isPhoneViewport()) return true;
   let coarse = false;
   try {
     coarse = window.matchMedia("(pointer: coarse)").matches;
   } catch {
     coarse = false;
   }
-  const points = typeof navigator !== "undefined" ? navigator.maxTouchPoints : 0;
-  return isPhoneViewport() || coarse || points > 0;
+  // Do NOT treat maxTouchPoints>0 on a wide desktop as "phone" — that draws
+  // the stick over a keyboard race and leftover stick X steals ArrowRight.
+  return coarse;
 };
 
 /** @deprecated alias — same rule as wantsTouchControls */
