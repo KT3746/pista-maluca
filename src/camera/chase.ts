@@ -22,6 +22,24 @@ function matrixIsFinite(m: THREE.Matrix4): boolean {
 }
 
 /**
+ * If the eye falls off the asphalt (behind the kart on a curve), slide it
+ * inward just enough to stay on the road. Do NOT pin it to the centerline —
+ * that hid the kart after the white-out fix.
+ */
+function stayAboveRoad(point: THREE.Vector3, track: BuiltTrack, minHeight: number): void {
+  const q = queryTrack(track.samples, point);
+  if (!Number.isFinite(q.lateral) || !isFiniteVec(q.right)) return;
+  const limit = Math.max(2.2, q.halfWidth * 0.9);
+  const over = Math.abs(q.lateral) - limit;
+  if (over > 0) {
+    point.addScaledVector(q.right, -Math.sign(q.lateral) * over);
+  }
+  if (Number.isFinite(q.height)) {
+    point.y = Math.max(point.y, q.height + minHeight);
+  }
+}
+
+/**
  * Third-person chase: sit behind and a little above the kart, look down
  * the road. The kart stays centered in the lower third from countdown
  * through the race.
@@ -72,10 +90,10 @@ export class ChaseCamera {
     const heading = Number.isFinite(kart.heading) ? kart.heading : 0;
     const speed = Number.isFinite(kart.speed) ? Math.min(Math.abs(kart.speed), 48) : 0;
     const boost = kart.boostTime > 0 ? 1 : 0;
-    const back = (phone ? 12.4 : 9.6) + speed * 0.08;
-    const height = (phone ? 5.2 : 3.85) + speed * 0.012;
-    const ahead = (phone ? 14 : 11.5) + speed * 0.12;
-    const lookY = phone ? 1.05 : 0.95;
+    const back = (phone ? 14.2 : 12.2) + speed * 0.08;
+    const height = (phone ? 6.6 : 5.5) + speed * 0.012;
+    const ahead = (phone ? 16 : 13.5) + speed * 0.12;
+    const lookY = phone ? 1.15 : 1.05;
     const sin = Math.sin(heading);
     const cos = Math.cos(heading);
     const px = Number.isFinite(kart.position.x) ? kart.position.x : 0;
@@ -88,12 +106,7 @@ export class ChaseCamera {
     const backZ = -cos;
 
     this.desired.set(px + backX * back, py + height, pz + backZ * back);
-    if (track) {
-      const q = queryTrack(track.samples, this.desired);
-      if (Number.isFinite(q.height)) {
-        this.desired.y = Math.max(this.desired.y, q.height + (phone ? 3.6 : 2.9));
-      }
-    }
+    if (track) stayAboveRoad(this.desired, track, phone ? 5.4 : 4.6);
 
     LOOK_TARGET.set(px + sin * ahead, py + lookY, pz + cos * ahead);
 
@@ -112,13 +125,14 @@ export class ChaseCamera {
       this.look.z = damp(this.look.z, LOOK_TARGET.z, 7.2, dt);
     }
 
-    const minDist = phone ? 10.5 : 7.4;
+    const minDist = phone ? 12.2 : 10.2;
     const dx = camera.position.x - px;
     const dy = camera.position.y - py;
     const dz = camera.position.z - pz;
     if (!isFiniteVec(camera.position) || dx * dx + dy * dy + dz * dz < minDist * minDist) {
       camera.position.copy(this.desired);
     }
+    if (track) stayAboveRoad(camera.position, track, phone ? 5.4 : 4.6);
 
     if (!isFiniteVec(this.look) || camera.position.distanceToSquared(this.look) < 0.25) {
       this.look.set(px + sin * 12, py + lookY, pz + cos * 12);
