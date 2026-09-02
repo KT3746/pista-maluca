@@ -22,14 +22,16 @@ function matrixIsFinite(m: THREE.Matrix4): boolean {
 }
 
 function keepInsideRibbon(point: THREE.Vector3, track: BuiltTrack, phone: boolean): void {
-  const q = queryTrack(track.samples, point);
-  if (!Number.isFinite(q.lateral) || !isFiniteVec(q.right)) return;
-  const maxLat = q.halfWidth + Math.min(1.15, q.runoff * 0.25);
-  if (Math.abs(q.lateral) > maxLat) {
+  for (let n = 0; n < 4; n++) {
+    const q = queryTrack(track.samples, point);
+    if (!Number.isFinite(q.lateral) || !isFiniteVec(q.right)) return;
+    const maxLat = Math.max(1.1, q.halfWidth * 0.36);
+    if (Math.abs(q.lateral) <= maxLat) break;
     point.addScaledVector(q.right, -Math.sign(q.lateral) * (Math.abs(q.lateral) - maxLat));
   }
+  const q = queryTrack(track.samples, point);
   if (Number.isFinite(q.height)) {
-    point.y = Math.max(point.y, q.height + (phone ? 3.4 : 2.55));
+    point.y = Math.max(point.y, q.height + (phone ? 4.4 : 3.9));
   }
 }
 
@@ -84,7 +86,23 @@ export class ChaseCamera {
     const py = Number.isFinite(kart.position.y) ? kart.position.y : 0;
     const pz = Number.isFinite(kart.position.z) ? kart.position.z : 0;
 
-    this.desired.set(px - sin * back, py + height, pz - cos * back);
+    let backX = -sin;
+    let backZ = -cos;
+    if (track) {
+      const qk = queryTrack(track.samples, kart.position);
+      const tx = qk.tangent.x;
+      const tz = qk.tangent.z;
+      const len = Math.hypot(tx, tz);
+      if (len > 1e-4) {
+        backX = (-tx / len) * 0.75 + -sin * 0.25;
+        backZ = (-tz / len) * 0.75 + -cos * 0.25;
+        const bLen = Math.hypot(backX, backZ) || 1;
+        backX /= bLen;
+        backZ /= bLen;
+      }
+    }
+
+    this.desired.set(px + backX * back, py + height, pz + backZ * back);
     if (track) keepInsideRibbon(this.desired, track, phone);
 
     LOOK_TARGET.set(px + sin * ahead, py + (phone ? 1.55 : 1.2), pz + cos * ahead);
@@ -104,8 +122,6 @@ export class ChaseCamera {
       this.look.z = damp(this.look.z, LOOK_TARGET.z, 6.4, dt);
     }
 
-    if (track) keepInsideRibbon(camera.position, track, phone);
-
     const minDist = phone ? 13.5 : 8.5;
     const dx = camera.position.x - px;
     const dy = camera.position.y - py;
@@ -113,6 +129,7 @@ export class ChaseCamera {
     if (!isFiniteVec(camera.position) || dx * dx + dy * dy + dz * dz < minDist * minDist) {
       camera.position.copy(this.desired);
     }
+    if (track) keepInsideRibbon(camera.position, track, phone);
 
     if (!isFiniteVec(this.look) || camera.position.distanceToSquared(this.look) < 0.25) {
       this.look.set(px + sin * 14, py + 1.2, pz + cos * 14);
@@ -130,13 +147,13 @@ export class ChaseCamera {
     camera.lookAt(this.look);
 
     if (!matrixIsFinite(camera.matrix) || !isFiniteVec(camera.position)) {
-      camera.position.set(px - sin * back, py + height, pz - cos * back);
+      camera.position.set(px + backX * back, py + height, pz + backZ * back);
       camera.up.set(0, 1, 0);
       camera.lookAt(px + sin * 14, py + 1.2, pz + cos * 14);
       if (!matrixIsFinite(camera.matrix)) {
         camera.quaternion.identity();
         camera.rotation.set(0, heading, 0);
-        camera.position.set(px - sin * back, py + height, pz - cos * back);
+        camera.position.set(px + backX * back, py + height, pz + backZ * back);
       }
     }
 

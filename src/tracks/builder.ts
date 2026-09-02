@@ -112,17 +112,16 @@ function addRibbon(
   curbGeo.setAttribute("color", new THREE.Float32BufferAttribute(curbCol, 3));
   curbGeo.setIndex(curbIdx);
   curbGeo.computeVertexNormals();
-  const curb = new THREE.Mesh(
-    curbGeo,
-    new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      roughness: 0.45,
-      metalness: 0.1,
-      polygonOffset: true,
-      polygonOffsetFactor: -1,
-      polygonOffsetUnits: -1,
-    }),
-  );
+  const curbMat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    roughness: 0.45,
+    metalness: 0.1,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
+  });
+  hideNearCamera(curbMat, 3.2);
+  const curb = new THREE.Mesh(curbGeo, curbMat);
   group.add(curb);
 
   const runGeo = new THREE.BufferGeometry();
@@ -149,6 +148,19 @@ function addRibbon(
 
   const wall = makeBarriers(samples, palette);
   group.add(wall);
+}
+
+/** Drop wall/curb pixels glued to the lens so a near-plane clip cannot fill the frame. */
+function hideNearCamera(mat: THREE.Material, meters = 3.6): void {
+  const key = `hideNear${meters}`;
+  mat.customProgramCacheKey = () => key;
+  mat.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      "#include <clipping_planes_fragment>",
+      `#include <clipping_planes_fragment>
+       if (dot(vViewPosition, vViewPosition) < ${(meters * meters).toFixed(1)}) discard;`,
+    );
+  };
 }
 
 function segmentJoins(a: TrackSample, b: TrackSample): boolean {
@@ -286,15 +298,14 @@ function makeBarriers(samples: TrackSample[], palette: TrackDef["palette"]): THR
   geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
   geo.setIndex(idx);
   geo.computeVertexNormals();
-  const wall = new THREE.Mesh(
-    geo,
-    new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      roughness: 0.58,
-      metalness: 0.16,
-      side: THREE.DoubleSide,
-    }),
-  );
+  const wallMat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    roughness: 0.58,
+    metalness: 0.16,
+    side: THREE.DoubleSide,
+  });
+  hideNearCamera(wallMat, 3.8);
+  const wall = new THREE.Mesh(geo, wallMat);
   wall.frustumCulled = false;
   return wall;
 }
