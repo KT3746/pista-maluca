@@ -155,11 +155,28 @@ function hideNearCamera(mat: THREE.Material, meters = 3.6): void {
   const key = `hideNear${meters}`;
   mat.customProgramCacheKey = () => key;
   mat.onBeforeCompile = (shader) => {
-    shader.fragmentShader = shader.fragmentShader.replace(
-      "#include <clipping_planes_fragment>",
-      `#include <clipping_planes_fragment>
-       if (dot(vViewPosition, vViewPosition) < ${(meters * meters).toFixed(1)}) discard;`,
-    );
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+         varying float vCamDist;`,
+      )
+      .replace(
+        "#include <project_vertex>",
+        `#include <project_vertex>
+         vCamDist = length(mvPosition.xyz);`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+         varying float vCamDist;`,
+      )
+      .replace(
+        "#include <clipping_planes_fragment>",
+        `#include <clipping_planes_fragment>
+         if (vCamDist < ${meters.toFixed(2)}) discard;`,
+      );
   };
 }
 
@@ -269,7 +286,7 @@ function makeBarriers(samples: TrackSample[], palette: TrackDef["palette"]): THR
   const thick = 0.22;
   for (let i = 0; i < n; i++) {
     const a = samples[i];
-    const hw = a.halfWidth + a.runoff + 0.12;
+    const hw = a.halfWidth + a.runoff + 0.55;
     for (const side of [-1, 1] as const) {
       const outer = a.position.clone().addScaledVector(a.binormal, side * hw);
       const inner = a.position.clone().addScaledVector(a.binormal, side * (hw - thick));
