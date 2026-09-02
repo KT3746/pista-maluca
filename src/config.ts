@@ -13,6 +13,15 @@ export const layoutWidth = (): number => {
   return typeof vis === "number" && vis > 0 ? vis : window.innerWidth;
 };
 
+/** CSS-pixel size of the visible game box (visualViewport when present). */
+export const viewSize = (): { w: number; h: number } => {
+  if (typeof window === "undefined") return { w: 1280, h: 720 };
+  const vv = window.visualViewport;
+  const w = Math.max(1, Math.round(vv?.width || window.innerWidth || 1));
+  const h = Math.max(1, Math.round(vv?.height || window.innerHeight || 1));
+  return { w, h };
+};
+
 export const isPhoneViewport = (): boolean => layoutWidth() < TOUCH_VIEWPORT_MAX;
 
 /**

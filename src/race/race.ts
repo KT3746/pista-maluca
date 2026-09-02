@@ -10,6 +10,7 @@ import { collideKarts, KartBody, stepKart } from "../physics/kart";
 import { buildTrack } from "../tracks/builder";
 import { getTrackDef } from "../tracks/catalog";
 import type { KartId, TrackId } from "../types";
+import { applyLowPerfScene } from "../perf";
 import { decorateTrack, makeLights, makeRaceEnvironment } from "../world/scenery";
 import { rubberBand, thinkAI } from "./ai";
 import type { RaceResultRow, Racer } from "./types";
@@ -34,7 +35,7 @@ export class Race {
   player!: Racer;
   lastResults: RaceResultRow[] = [];
   autoDrive = false;
-  onCue: (kind: "count" | "go" | "item" | "hit" | "finish" | "boost") => void = () => undefined;
+  onCue: (kind: "count" | "go" | "item" | "hit" | "finish" | "boost" | "respawn") => void = () => undefined;
   private headlight: THREE.SpotLight;
   private lampLights: THREE.PointLight[] = [];
 
@@ -48,6 +49,7 @@ export class Race {
     this.scene.add(this.world);
     this.scene.add(makeLights(this.built, mobile));
     this.scene.fog = new THREE.FogExp2(def.palette.fog, def.palette.fogDensity);
+    this.scene.background = new THREE.Color(def.palette.fog);
     this.scene.environment = makeRaceEnvironment();
     this.scene.add(this.items.group);
     this.scene.add(this.fx.group);
@@ -178,6 +180,13 @@ export class Race {
       stats.topSpeed *= band;
       const prevBoost = r.kart.boostTime;
       stepKart(r.kart, inp, stats, this.built, dt);
+      if (r.kart.justRespawned) {
+        r.kart.justRespawned = false;
+        if (r.isPlayer) {
+          this.cameraRig.bump();
+          this.onCue("respawn");
+        }
+      }
       if (r.kart.boostTime > prevBoost && r.isPlayer) this.onCue("boost");
       r.totalTime = this.elapsed;
       if (r.kart.lap > 0 && r.kart.checkpoints === 0 && r.lastLapTime === 0) {
@@ -321,8 +330,20 @@ export class Race {
     return this.built.samples.filter((s) => !s.shortcut).map((s) => ({ x: s.position.x, z: s.position.z }));
   }
 
+  applyLowPerf(): void {
+    this.headlight.intensity = Math.min(this.headlight.intensity, 3.2);
+    for (const l of this.lampLights) {
+      l.intensity = 0;
+      l.visible = false;
+    }
+    applyLowPerfScene(this.scene);
+  }
+
   dispose(): void {
+    this.fx.clear();
+    this.items.clear();
     this.scene.environment = null;
+    this.scene.background = null;
     this.scene.traverse((o) => {
       if (o instanceof THREE.Mesh) {
         o.geometry.dispose();
@@ -330,7 +351,14 @@ export class Race {
         if (Array.isArray(m)) m.forEach((x) => x.dispose());
         else m.dispose();
       }
+      if (o instanceof THREE.Light) {
+        const shadow = (o as THREE.DirectionalLight).shadow;
+        shadow?.map?.dispose();
+      }
     });
+    this.scene.clear();
+    this.racers.length = 0;
+    this.lampLights.length = 0;
   }
 
   countdownLabel(): string | null {

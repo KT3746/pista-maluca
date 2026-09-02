@@ -171,6 +171,13 @@ export class Input {
     this.touchMode = wantsTouchControls() || !!this.boundLayer;
   }
 
+  /** Drop the race pad layer so menu clicks are not captured by leftover sticks. */
+  releaseTouch(): void {
+    this.boundLayer = null;
+    this.resetPlay();
+    this.touchMode = wantsTouchControls();
+  }
+
   poll(): InputState {
     const k = this.keys;
     const up = k.has("ArrowUp") || k.has("KeyW");
