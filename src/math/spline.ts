@@ -15,7 +15,7 @@ function cr(p0: number, p1: number, p2: number, p3: number, t: number): number {
 
 export function sampleClosedSpline(
   points: ControlPoint[],
-  samplesPerSpan = 14,
+  samplesPerSpan = 24,
 ): { position: THREE.Vector3; width: number; spanT: number }[] {
   const n = points.length;
   const out: { position: THREE.Vector3; width: number; spanT: number }[] = [];
@@ -51,11 +51,13 @@ export function computeFrames(
     const next = positions[(i + 1) % positions.length];
     const tangent = next.clone().sub(prev).normalize();
     const binormal = new THREE.Vector3().crossVectors(up, tangent);
-    if (binormal.lengthSq() < 1e-5) {
+    if (binormal.lengthSq() < 1e-6) {
       if (prevBinormal) binormal.copy(prevBinormal);
       else binormal.set(1, 0, 0);
     } else binormal.normalize();
-    if (prevBinormal && binormal.dot(prevBinormal) < 0) binormal.negate();
+    // Do not flip to match the previous frame: a 180° sew stitches the
+    // left wall onto the right wall and puts a huge red triangle through
+    // the chase camera. up × tangent already gives a stable "right".
     prevBinormal = binormal.clone();
     const normal = new THREE.Vector3().crossVectors(tangent, binormal).normalize();
     frames.push({ tangent, normal, binormal });

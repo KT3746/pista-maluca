@@ -71,14 +71,14 @@ export function lerp(a: number, b: number, t: number): number {
 }
 
 export function wrapPi(a: number): number {
-  let x = a;
-  while (x > Math.PI) x -= Math.PI * 2;
-  while (x < -Math.PI) x += Math.PI * 2;
-  return x;
+  if (!Number.isFinite(a)) return 0;
+  return Math.atan2(Math.sin(a), Math.cos(a));
 }
 
 export function damp(current: number, target: number, lambda: number, dt: number): number {
-  return lerp(current, target, 1 - Math.exp(-lambda * dt));
+  if (!Number.isFinite(current)) return Number.isFinite(target) ? target : 0;
+  if (!Number.isFinite(target) || !Number.isFinite(dt) || dt <= 0) return current;
+  return lerp(current, target, 1 - Math.exp(-lambda * Math.min(dt, 1)));
 }
 
 export function formatTime(seconds: number): string {

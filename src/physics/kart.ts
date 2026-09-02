@@ -109,6 +109,20 @@ export function stepKart(
   kart.magnetTime = Math.max(0, kart.magnetTime - dt);
   kart.shake = Math.max(0, kart.shake - dt);
 
+  if (
+    !Number.isFinite(kart.heading) ||
+    !Number.isFinite(kart.speed) ||
+    !Number.isFinite(kart.position.x) ||
+    !Number.isFinite(kart.position.y) ||
+    !Number.isFinite(kart.position.z)
+  ) {
+    snapToRibbon(kart, track);
+    kart.heading = Number.isFinite(kart.heading) ? wrapPi(kart.heading) : 0;
+    kart.speed = 0;
+    kart.yawRate = 0;
+    return;
+  }
+
   const stunned = kart.stunTime > 0;
   const throttle = stunned ? 0 : input.throttle;
   const brake = stunned ? 1 : input.brake;

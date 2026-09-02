@@ -267,18 +267,21 @@ export class UI {
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = "rgba(7,8,12,0.35)";
     ctx.fillRect(0, 0, w, h);
-    if (!pts.length) return;
+    const finitePts = pts.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.z));
+    if (!finitePts.length) return;
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    for (const p of pts) {
+    for (const p of finitePts) {
       minX = Math.min(minX, p.x);
       maxX = Math.max(maxX, p.x);
       minZ = Math.min(minZ, p.z);
       maxZ = Math.max(maxZ, p.z);
     }
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minZ) || !Number.isFinite(maxZ)) return;
     const pad = 24;
     const sx = (w - pad * 2) / Math.max(1, maxX - minX);
     const sz = (h - pad * 2) / Math.max(1, maxZ - minZ);
     const s = Math.min(sx, sz);
+    if (!Number.isFinite(s) || s <= 0) return;
     const map = (x: number, z: number) => ({
       x: pad + (x - minX) * s,
       y: pad + (z - minZ) * s,
@@ -286,15 +289,18 @@ export class UI {
     ctx.strokeStyle = "rgba(232,237,242,0.55)";
     ctx.lineWidth = 6;
     ctx.beginPath();
-    pts.forEach((p, i) => {
+    finitePts.forEach((p, i) => {
       const m = map(p.x, p.z);
+      if (!Number.isFinite(m.x) || !Number.isFinite(m.y)) return;
       if (i === 0) ctx.moveTo(m.x, m.y);
       else ctx.lineTo(m.x, m.y);
     });
     ctx.closePath();
     ctx.stroke();
     for (const r of racers) {
+      if (!Number.isFinite(r.x) || !Number.isFinite(r.z)) continue;
       const m = map(r.x, r.z);
+      if (!Number.isFinite(m.x) || !Number.isFinite(m.y)) continue;
       ctx.fillStyle = r.you ? "#d4a017" : "#e8edf2";
       ctx.beginPath();
       ctx.arc(m.x, m.y, r.you ? 7 : 4, 0, Math.PI * 2);

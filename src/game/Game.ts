@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { AudioEngine } from "../audio/engine";
 import { forceRacePadsVisible, isMobileViewport, isPhoneViewport, wantsTouchControls } from "../config";
+import { RACE_FAR, RACE_NEAR } from "../camera/chase";
 import { Input } from "../input/input";
 import { Championship } from "../race/championship";
 import { Race } from "../race/race";
@@ -34,23 +35,32 @@ export class Game {
   constructor(canvas: HTMLCanvasElement, uiRoot: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({
       canvas,
-      antialias: !isMobileViewport(),
+      antialias: !isPhoneViewport(),
       powerPreference: "high-performance",
       alpha: false,
       logarithmicDepthBuffer: false,
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileViewport() ? 1 : 1.75));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, isPhoneViewport() ? 1.15 : 1.75));
     this.renderer.setSize(window.innerWidth, window.innerHeight, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.42;
-    this.renderer.shadowMap.enabled = !isMobileViewport();
+    this.renderer.shadowMap.enabled = !isPhoneViewport();
+    this.renderer.setClearColor(0x152038, 1);
     this.camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.55, 720);
     this.ui = new UI(uiRoot);
     this.ui.onAction = (a) => this.handle(a);
     this.input.bind(document.body);
     this.setupMenuScene();
     this.showTitle();
+
+    canvas.addEventListener("webglcontextlost", (e) => {
+      e.preventDefault();
+    });
+    canvas.addEventListener("webglcontextrestored", () => {
+      this.renderer.setClearColor(0x152038, 1);
+      this.resize();
+    });
 
     window.addEventListener("resize", () => this.resize());
     window.addEventListener("orientationchange", () => this.resize());
@@ -286,7 +296,8 @@ export class Game {
     this.renderer.setScissorTest(false);
     this.renderer.setViewport(0, 0, w, h);
     this.camera.clearViewOffset();
-    this.camera.near = 0.85;
+    this.camera.near = RACE_NEAR;
+    this.camera.far = RACE_FAR;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.race?.dispose();
@@ -397,7 +408,7 @@ export class Game {
         this.audio.engine(rpm, this.input.state.throttle, p.kart.boostTime > 0);
         this.audio.drift(p.kart.drifting ? 0.7 + p.kart.driftCharge * 0.3 : 0);
       }
-      this.renderer.setClearColor(0x1a2a48, 1);
+      this.renderer.setClearColor(0x152038, 1);
       this.renderer.setScissorTest(false);
       this.renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
       this.renderer.render(this.race.scene, this.camera);
