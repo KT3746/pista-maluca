@@ -90,10 +90,12 @@ export class ChaseCamera {
     const heading = Number.isFinite(kart.heading) ? kart.heading : 0;
     const speed = Number.isFinite(kart.speed) ? Math.min(Math.abs(kart.speed), 48) : 0;
     const boost = kart.boostTime > 0 ? 1 : 0;
-    const back = (phone ? 14.2 : 12.2) + speed * 0.08;
-    const height = (phone ? 6.6 : 5.5) + speed * 0.012;
-    const ahead = (phone ? 16 : 13.5) + speed * 0.12;
-    const lookY = phone ? 1.15 : 1.05;
+    const back = (phone ? 13.5 : 11.4) + speed * 0.07;
+    const height = (phone ? 6.2 : 5.1) + speed * 0.01;
+    // Look close to the kart so it sits in the lower third — a 13 m look-ahead
+    // pitched the lens at the horizon and cropped the player off the bottom.
+    const ahead = (phone ? 8.2 : 7.4) + speed * 0.08;
+    const lookY = phone ? 0.85 : 0.75;
     const sin = Math.sin(heading);
     const cos = Math.cos(heading);
     const px = Number.isFinite(kart.position.x) ? kart.position.x : 0;
@@ -135,14 +137,14 @@ export class ChaseCamera {
     if (track) stayAboveRoad(camera.position, track, phone ? 5.4 : 4.6);
 
     if (!isFiniteVec(this.look) || camera.position.distanceToSquared(this.look) < 0.25) {
-      this.look.set(px + sin * 12, py + lookY, pz + cos * 12);
+      this.look.set(px + sin * 8, py + lookY, pz + cos * 8);
     }
 
     VIEW.copy(this.look).sub(camera.position);
     const horiz = VIEW.x * VIEW.x + VIEW.z * VIEW.z;
     if (horiz < 0.04) {
-      this.look.x = camera.position.x + sin * 12;
-      this.look.z = camera.position.z + cos * 12;
+      this.look.x = camera.position.x + sin * 8;
+      this.look.z = camera.position.z + cos * 8;
     }
 
     camera.up.set(0, 1, 0);
@@ -151,7 +153,7 @@ export class ChaseCamera {
     if (!matrixIsFinite(camera.matrix) || !isFiniteVec(camera.position)) {
       camera.position.set(px + backX * back, py + height, pz + backZ * back);
       camera.up.set(0, 1, 0);
-      camera.lookAt(px + sin * 12, py + lookY, pz + cos * 12);
+      camera.lookAt(px + sin * 8, py + lookY, pz + cos * 8);
       if (!matrixIsFinite(camera.matrix)) {
         camera.quaternion.identity();
         camera.rotation.set(0, heading, 0);
