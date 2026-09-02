@@ -82,6 +82,7 @@ export class Game {
     window.addEventListener("pointerdown", unlock);
     window.addEventListener("keydown", unlock);
     if (forcedLowPerf()) this.enterLowPerf();
+    (window as unknown as { pista: Game }).pista = this;
   }
 
   start(): void {

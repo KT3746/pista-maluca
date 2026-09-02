@@ -29,7 +29,7 @@ function matrixIsFinite(m: THREE.Matrix4): boolean {
 function stayAboveRoad(point: THREE.Vector3, track: BuiltTrack, minHeight: number): void {
   const q = queryTrack(track.samples, point);
   if (!Number.isFinite(q.lateral) || !isFiniteVec(q.right)) return;
-  const limit = Math.max(2.2, q.halfWidth * 0.9);
+  const limit = Math.max(2.4, q.halfWidth * 1.05);
   const over = Math.abs(q.lateral) - limit;
   if (over > 0) {
     point.addScaledVector(q.right, -Math.sign(q.lateral) * over);
@@ -90,12 +90,12 @@ export class ChaseCamera {
     const heading = Number.isFinite(kart.heading) ? kart.heading : 0;
     const speed = Number.isFinite(kart.speed) ? Math.min(Math.abs(kart.speed), 48) : 0;
     const boost = kart.boostTime > 0 ? 1 : 0;
-    const back = (phone ? 13.5 : 11.4) + speed * 0.07;
-    const height = (phone ? 6.2 : 5.1) + speed * 0.01;
-    // Look close to the kart so it sits in the lower third — a 13 m look-ahead
-    // pitched the lens at the horizon and cropped the player off the bottom.
-    const ahead = (phone ? 8.2 : 7.4) + speed * 0.08;
-    const lookY = phone ? 0.85 : 0.75;
+    const back = (phone ? 11.8 : 10.2) + speed * 0.06;
+    const height = (phone ? 5.4 : 4.6) + speed * 0.01;
+    // Look at the kart, not the horizon. Phone pads cover the bottom ~180px,
+    // so the player has to sit higher in the frame than a desktop chase.
+    const ahead = (phone ? 3.4 : 5.2) + speed * 0.06;
+    const lookY = phone ? 0.55 : 0.62;
     const sin = Math.sin(heading);
     const cos = Math.cos(heading);
     const px = Number.isFinite(kart.position.x) ? kart.position.x : 0;
