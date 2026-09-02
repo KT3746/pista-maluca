@@ -39,6 +39,8 @@ export class KartBody {
   stuckTimer = 0;
   airTime = 0;
   recoverTimer = 0;
+  /** Set when we snap back to the ribbon; Race consumes it for the banner + cam bump. */
+  justRespawned = false;
 
   reset(pos: THREE.Vector3, heading: number): void {
     this.position.copy(pos);
@@ -62,6 +64,7 @@ export class KartBody {
     this.stuckTimer = 0;
     this.airTime = 0;
     this.recoverTimer = 0;
+    this.justRespawned = false;
   }
 }
 
@@ -89,6 +92,7 @@ function snapToRibbon(kart: KartBody, track: BuiltTrack): void {
   kart.airTime = 0;
   kart.wallContact = false;
   kart.recoverTimer = 0;
+  kart.justRespawned = true;
 }
 
 const FWD = new THREE.Vector3();
@@ -138,7 +142,13 @@ export function stepKart(
   const offRibbon = Math.abs(q.lateral) > q.halfWidth + q.runoff;
 
   const away = kart.position.distanceTo(q.sample.position);
-  if (Math.abs(q.lateral) > q.halfWidth + q.runoff + 1.4 || kart.position.y < -2 || away > 10) {
+  const planar = Math.hypot(kart.position.x - q.sample.position.x, kart.position.z - q.sample.position.z);
+  if (
+    Math.abs(q.lateral) > q.halfWidth + q.runoff + 0.85 ||
+    kart.position.y < -1.2 ||
+    away > 7 ||
+    planar > 8.5
+  ) {
     snapToRibbon(kart, track);
     return;
   }
@@ -230,7 +240,7 @@ export function stepKart(
   }
   if (!kart.onAsphalt && !q.sample.shortcut) {
     kart.recoverTimer += dt;
-    if (kart.recoverTimer > 0.55) {
+    if (kart.recoverTimer > 0.4) {
       snapToRibbon(kart, track);
       return;
     }
@@ -254,7 +264,7 @@ export function stepKart(
     }
     kart.wallContact = true;
     kart.offTrackTimer += dt;
-    if (over > 1.6 || kart.offTrackTimer > 0.4) {
+    if (over > 0.85 || kart.offTrackTimer > 0.22) {
       snapToRibbon(kart, track);
       return;
     }
@@ -263,9 +273,15 @@ export function stepKart(
     kart.offTrackTimer = 0;
   }
 
-  if (!kart.onAsphalt && Math.abs(kart.speed) < 2 && throttle > 0) {
+  if (!kart.onAsphalt && Math.abs(kart.speed) < 3.2) {
     kart.stuckTimer += dt;
-    if (kart.stuckTimer > 1.4) {
+    if (kart.stuckTimer > 0.7) {
+      snapToRibbon(kart, track);
+      return;
+    }
+  } else if (kart.onAsphalt && Math.abs(kart.speed) < 0.35 && throttle > 0.4 && brake < 0.1) {
+    kart.stuckTimer += dt;
+    if (kart.stuckTimer > 1.8) {
       snapToRibbon(kart, track);
       return;
     }

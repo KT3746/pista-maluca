@@ -30,31 +30,55 @@ export class UI {
   private countdownEl: HTMLElement | null = null;
   private press: { pointerId: number; x: number; y: number; el: HTMLElement } | null = null;
   private lastFire = 0;
+  private bannerTimer = 0;
 
   constructor(root: HTMLElement) {
     this.root = root;
-    this.root.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0) return;
-      const t = (e.target as HTMLElement | null)?.closest("[data-act]") as HTMLElement | null;
-      if (!t || t.closest("[data-pad]") || this.isDisabled(t)) return;
-      this.press = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, el: t };
-    });
-    this.root.addEventListener("pointerup", (e) => {
-      const p = this.press;
-      this.press = null;
-      if (!p || p.pointerId !== e.pointerId) return;
-      if (Math.hypot(e.clientX - p.x, e.clientY - p.y) > 16) return;
-      if (!p.el.isConnected || this.isDisabled(p.el)) return;
-      this.fire(p.el);
-    });
+    this.root.addEventListener(
+      "pointerdown",
+      (e) => {
+        if (e.button !== 0) return;
+        const t = this.actFromEvent(e);
+        if (!t) return;
+        this.press = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, el: t };
+      },
+      true,
+    );
+    this.root.addEventListener(
+      "pointerup",
+      (e) => {
+        const p = this.press;
+        this.press = null;
+        const t = this.actFromEvent(e) ?? (p && p.pointerId === e.pointerId ? p.el : null);
+        if (!t) return;
+        if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 28) return;
+        if (!t.isConnected || this.isDisabled(t)) return;
+        this.fire(t);
+      },
+      true,
+    );
     this.root.addEventListener("pointercancel", () => {
       this.press = null;
     });
-    this.root.addEventListener("click", (e) => {
-      const t = (e.target as HTMLElement | null)?.closest("[data-act]") as HTMLElement | null;
-      if (!t || t.closest("[data-pad]") || this.isDisabled(t)) return;
-      this.fire(t);
-    });
+    this.root.addEventListener(
+      "click",
+      (e) => {
+        const t = this.actFromEvent(e);
+        if (!t) return;
+        this.fire(t);
+      },
+      true,
+    );
+  }
+
+  /** Text nodes inside a button are not Elements — closest() used to throw and eat the first tap. */
+  private actFromEvent(e: Event): HTMLElement | null {
+    const raw = e.target;
+    const el = raw instanceof Element ? raw : (raw as Node | null)?.parentElement;
+    if (!el) return null;
+    const t = el.closest("[data-act]") as HTMLElement | null;
+    if (!t || t.closest("[data-pad]") || this.isDisabled(t)) return null;
+    return t;
   }
 
   private isDisabled(el: HTMLElement): boolean {
@@ -62,14 +86,18 @@ export class UI {
   }
 
   private fire(el: HTMLElement): void {
-    const now = performance.now();
-    if (now - this.lastFire < 280) return;
-    this.lastFire = now;
     const act = el.dataset.act;
-    const id = el.dataset.id;
+    if (!act) return;
+    const id = el.dataset.id ?? "";
+    const now = performance.now();
+    // Swallow the leftover `click` after pointerup (even if the DOM under
+    // the cursor was replaced by a different button). Keep the window short
+    // so a real second press is not ignored.
+    if (now - this.lastFire < 140) return;
+    this.lastFire = now;
     if (act === "kart") this.onAction({ type: "kart", id: id as KartId });
     else if (act === "track") this.onAction({ type: "track", id: id as TrackId });
-    else if (act) this.onAction({ type: act } as UiAction);
+    else this.onAction({ type: act } as UiAction);
   }
 
   highlight(kind: "kart" | "track", id: string): void {
@@ -197,25 +225,36 @@ export class UI {
       </section>`);
   }
 
+  stripRaceChrome(): void {
+    this.root.querySelectorAll(".hud, .touch, .countdown, .banner, .soot-veil, .pause-btn").forEach((n) => n.remove());
+    this.minimap = null;
+    this.countdownEl = null;
+  }
+
   raceHud(_touch = true): void {
     this.set(`
       <div class="hud">
-        <div class="hud-top">
+        <div class="hud-tl">
           <div class="pos"><span id="hud-pos">P4</span><small id="hud-name">—</small></div>
         </div>
-        <div class="lap-box"><div class="kicker">Volta</div><div class="num" id="hud-lap">1/3</div></div>
-        <div class="hud-map">
-          <canvas id="minimap" width="264" height="264"></canvas>
+        <div class="hud-tr">
+          <div class="hud-tr-row">
+            <div class="lap-box"><div class="kicker">Volta</div><div class="num" id="hud-lap">1/3</div></div>
+            <button type="button" class="icon-btn pause-btn" data-act="pause" aria-label="Pausa">II</button>
+          </div>
+          <div class="hud-map">
+            <canvas id="minimap" width="264" height="264"></canvas>
+          </div>
         </div>
         <div class="hud-bot">
           <div class="speed-box"><div class="kicker">km/h</div><div class="num" id="hud-spd">0</div></div>
           <div class="item-slot" id="hud-item">VAZIO</div>
         </div>
       </div>
+      <div class="steer-dbg hidden" id="steer-dbg"></div>
       <div class="countdown hidden" id="countdown">3</div>
       <div class="banner hidden" id="banner"></div>
       <div class="soot-veil hidden" id="soot-veil"></div>
-      <button type="button" class="icon-btn pause-btn" data-act="pause" aria-label="Pausa">II</button>
       <div class="touch" id="touch">
         <div class="zone stick-wrap" aria-label="Direção"><div class="stick-base"></div><div class="stick-knob"></div></div>
         <div class="zone pad-right">
@@ -254,6 +293,16 @@ export class UI {
       item.classList.toggle("armed", !!data.item);
     }
     this.root.querySelector("#soot-veil")?.classList.toggle("hidden", !data.smoke);
+  }
+
+  setSteerDebug(text: string | null): void {
+    const el = this.root.querySelector("#steer-dbg");
+    if (!el) return;
+    if (!text) el.classList.add("hidden");
+    else {
+      el.classList.remove("hidden");
+      el.textContent = text;
+    }
   }
 
   drawMinimap(
@@ -318,13 +367,19 @@ export class UI {
     }
   }
 
-  banner(text: string | null): void {
+  banner(text: string | null, ms = 0): void {
     const el = this.root.querySelector("#banner");
     if (!el) return;
+    window.clearTimeout(this.bannerTimer);
     if (!text) el.classList.add("hidden");
     else {
       el.classList.remove("hidden");
       el.textContent = text;
+      if (ms > 0) {
+        this.bannerTimer = window.setTimeout(() => {
+          el.classList.add("hidden");
+        }, ms);
+      }
     }
   }
 
